@@ -6,7 +6,7 @@ use Composer\InstalledVersions;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 
-it('owns only the pending D-UI-3 configuration overlay', function (): void {
+it('owns only the D-UI-3 application configuration overlay', function (): void {
     /** @var array<string, mixed> $appConfig */
     $appConfig = require config_path('built-for-cloud.php');
 
@@ -17,6 +17,12 @@ it('owns only the pending D-UI-3 configuration overlay', function (): void {
             'description' => null,
             'icon' => null,
             'product_url' => null,
+        ],
+        'credentials' => [
+            'guard' => 'bfc',
+            'declaration' => null,
+            'session_guard' => null,
+            'app_purposes' => [],
         ],
         'ui' => [
             'landing_page' => false,

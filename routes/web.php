@@ -1,5 +1,3 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
-Route::view('/', 'welcome')->name('home');
+declare(strict_types=1);
