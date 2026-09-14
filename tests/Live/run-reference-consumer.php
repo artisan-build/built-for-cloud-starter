@@ -112,6 +112,152 @@ function writeJson(string $path, mixed $value): void
     file_put_contents($path, json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL);
 }
 
+/** @return array{port: int, reservation: resource} */
+function reserveLoopbackPort()
+{
+    $reservation = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+    if ($reservation === false) {
+        throw new RuntimeException("Unable to reserve a loopback port ({$errorCode}): {$errorMessage}");
+    }
+
+    $address = stream_socket_get_name($reservation, false);
+    if (! is_string($address) || preg_match('/:(\d+)$/D', $address, $matches) !== 1) {
+        fclose($reservation);
+
+        throw new RuntimeException('The OS-allocated loopback port could not be read.');
+    }
+
+    return ['port' => (int) $matches[1], 'reservation' => $reservation];
+}
+
+/** @return array{status: int, headers: string, body: string} */
+function httpRequest(CurlHandle $client, string $method, string $url, array $data = [], array $headers = []): array
+{
+    curl_setopt_array($client, [
+        CURLOPT_URL => $url,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POSTFIELDS => $data === [] ? null : http_build_query($data),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT_MS => 500,
+        CURLOPT_TIMEOUT_MS => 5000,
+    ]);
+    $captured = curl_exec($client);
+    if (! is_string($captured)) {
+        throw new RuntimeException('Loopback HTTP failed: '.curl_error($client));
+    }
+
+    $headerSize = curl_getinfo($client, CURLINFO_HEADER_SIZE);
+
+    return [
+        'status' => curl_getinfo($client, CURLINFO_RESPONSE_CODE),
+        'headers' => substr($captured, 0, $headerSize),
+        'body' => substr($captured, $headerSize),
+    ];
+}
+
+/** @return array{tables: int, queue_payloads: int} */
+function scanDatabase(string $path, string $secret): array
+{
+    $database = new PDO('sqlite:'.$path);
+    $tables = $database->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")?->fetchAll(PDO::FETCH_COLUMN);
+    if (! is_array($tables)) {
+        throw new RuntimeException('Unable to inventory the generated database.');
+    }
+
+    $queuePayloads = 0;
+    foreach ($tables as $table) {
+        if (! is_string($table)) {
+            continue;
+        }
+
+        $quoted = '"'.str_replace('"', '""', $table).'"';
+        $rows = $database->query('SELECT * FROM '.$quoted)?->fetchAll(PDO::FETCH_ASSOC);
+        if (! is_array($rows)) {
+            throw new RuntimeException("Unable to inspect database table {$table}.");
+        }
+
+        foreach ($rows as $row) {
+            foreach ($row as $column => $value) {
+                if ($table === 'jobs' && $column === 'payload' && is_string($value)) {
+                    $queuePayloads++;
+                }
+
+                if (is_string($value) && $value !== hash('sha256', $secret) && str_contains($value, $secret)) {
+                    throw new RuntimeException("Operator plaintext persisted in database table {$table}.");
+                }
+            }
+        }
+    }
+
+    return ['tables' => count($tables), 'queue_payloads' => $queuePayloads];
+}
+
+/** @return array{files: int, logs: int} */
+function scanFiles(string $root, string $secret): array
+{
+    $files = 0;
+    $logs = 0;
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
+        if (! $file instanceof SplFileInfo || ! $file->isFile()) {
+            continue;
+        }
+
+        $files++;
+        $relative = substr($file->getPathname(), strlen(rtrim($root, DIRECTORY_SEPARATOR)) + 1);
+        $logs += str_starts_with(str_replace('\\', '/', $relative), 'storage/logs/') ? 1 : 0;
+        $contents = file_get_contents($file->getPathname());
+        if (is_string($contents) && str_contains($contents, $secret)) {
+            throw new RuntimeException("Operator plaintext persisted in {$relative}.");
+        }
+    }
+
+    return ['files' => $files, 'logs' => $logs];
+}
+
+/** @return array<string, mixed> */
+function createStandaloneUser(string $projectRoot, array $environment): array
+{
+    $bootstrap = <<<'PHP'
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$user = ArtisanBuild\BuiltForCloud\User::query()->create([
+    'name' => 'Loopback Owner',
+    'email' => 'loopback-owner@example.test',
+    'password' => Illuminate\Support\Facades\Hash::make((string) getenv('BFC_LOOPBACK_PASSWORD')),
+]);
+$user->forceFill([
+    'role' => ArtisanBuild\BuiltForCloud\UserRole::Owner->value,
+    'status' => 'active',
+    'email_verified_at' => now(),
+    'original_contact_email' => $user->email,
+])->save();
+echo json_encode([
+    'user_class' => $user::class,
+    'guard_driver' => config('auth.guards.web.driver'),
+    'guard_provider' => config('auth.guards.web.provider'),
+    'provider_model' => config('auth.providers.users.model'),
+    'login_get' => Illuminate\Support\Facades\Route::has('bfc.login'),
+    'login_post' => Illuminate\Support\Facades\Route::has('bfc.login.store'),
+], JSON_THROW_ON_ERROR);
+PHP;
+    $process = runCommand(
+        [PHP_BINARY, '-r', $bootstrap],
+        $projectRoot,
+        [...$environment, 'BFC_LOOPBACK_PASSWORD' => 'loopback-password-created-by-runner'],
+        120,
+    );
+    $observation = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($observation)) {
+        throw new RuntimeException('The standalone identity probe returned an invalid observation.');
+    }
+
+    return $observation;
+}
+
 $options = runnerOptions();
 $starterRepository = dirname(__DIR__, 2);
 $packageRepository = realpath($options['package-repository']);
@@ -121,6 +267,7 @@ $runRoot = sys_get_temp_dir().'/'.$runId;
 $commands = [];
 $cases = [];
 $cleaned = false;
+$server = null;
 
 if (! is_string($packageRepository)
     || ! preg_match('/^[0-9a-f]{40}$/D', $options['starter-sha'])
@@ -243,22 +390,122 @@ try {
     }
     $cases['configure_and_operator_mint'] = 'passed';
 
-    foreach (treeSnapshot($projectRoot) as $relative => $_checksum) {
-        $contents = file_get_contents($projectRoot.'/'.$relative);
-        if (is_string($contents) && str_contains($contents, $operatorSecret)) {
-            throw new RuntimeException("Operator plaintext persisted in {$relative}.");
-        }
-    }
-    $cases['operator_secret_absent_from_files'] = 'passed';
-
     $rerun = runCommand([
         PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$specPath, '--no-interaction',
     ], $projectRoot, $environment, 120);
-    if (str_contains($rerun->getOutput().$rerun->getErrorOutput(), $operatorSecret)) {
+    $subsequentOutput = $rerun->getOutput().$rerun->getErrorOutput();
+    if (str_contains($subsequentOutput, $operatorSecret)) {
         throw new RuntimeException('The operator secret appeared in subsequent output.');
     }
     $cases['idempotent_rerun'] = 'passed';
-    unset($operatorSecret, $configureOutput);
+
+    $identity = createStandaloneUser($projectRoot, $environment);
+    if ($identity !== [
+        'user_class' => 'ArtisanBuild\\BuiltForCloud\\User',
+        'guard_driver' => 'session',
+        'guard_provider' => 'users',
+        'provider_model' => 'ArtisanBuild\\BuiltForCloud\\User',
+        'login_get' => true,
+        'login_post' => true,
+    ]) {
+        throw new RuntimeException('The generated app did not resolve package-owned standalone identity and routes.');
+    }
+
+    $portReservation = reserveLoopbackPort();
+    $port = $portReservation['port'];
+    fclose($portReservation['reservation']);
+    $server = new Process([
+        PHP_BINARY, 'artisan', 'serve', '--host=127.0.0.1', '--port='.$port, '--no-reload',
+    ], $projectRoot, [...$environment, 'MAIL_MAILER' => 'array'], null, null);
+    $server->start();
+    $serverPid = $server->getPid();
+
+    $client = curl_init();
+    if (! $client instanceof CurlHandle) {
+        throw new RuntimeException('Unable to initialize the loopback HTTP client.');
+    }
+    curl_setopt($client, CURLOPT_COOKIEFILE, '');
+
+    $loginForm = null;
+    $deadline = microtime(true) + 20;
+    do {
+        if (! $server->isRunning()) {
+            throw new RuntimeException('The loopback server exited before readiness: '.$server->getErrorOutput());
+        }
+
+        try {
+            $candidate = httpRequest($client, 'GET', 'http://127.0.0.1:'.$port.'/bfc/login');
+            if ($candidate['status'] === 200) {
+                $loginForm = $candidate;
+                break;
+            }
+        } catch (RuntimeException) {
+            usleep(100_000);
+        }
+    } while (microtime(true) < $deadline);
+
+    if ($loginForm === null || ! str_contains($loginForm['body'], 'data-testid="login-form"')) {
+        throw new RuntimeException('The package login form did not become ready on loopback.');
+    }
+    if (preg_match('/name="_token" value="([^"]+)"/', $loginForm['body'], $csrfMatch) !== 1) {
+        throw new RuntimeException('The package login form did not render a CSRF token.');
+    }
+
+    $login = httpRequest($client, 'POST', 'http://127.0.0.1:'.$port.'/bfc/login', [
+        '_token' => html_entity_decode($csrfMatch[1], ENT_QUOTES | ENT_HTML5),
+        'email' => 'loopback-owner@example.test',
+        'password' => 'loopback-password-created-by-runner',
+    ], ['Content-Type: application/x-www-form-urlencoded']);
+    $memberPage = httpRequest($client, 'GET', 'http://127.0.0.1:'.$port.'/bfc/members');
+    if ($login['status'] !== 302
+        || ! preg_match('#^Location: https?://127\.0\.0\.1(?::\d+)?/\r?$#mi', $login['headers'])
+        || $memberPage['status'] !== 200
+        || ! str_contains($memberPage['body'], 'loopback-owner@example.test')) {
+        throw new RuntimeException('Standalone package login did not establish an authenticated web session.');
+    }
+    $cases['standalone_package_human_auth_loopback'] = 'passed';
+
+    $credentialListing = httpRequest(
+        $client,
+        'GET',
+        'http://127.0.0.1:'.$port.'/bfc/credentials',
+        headers: ['Authorization: Bearer '.$operatorSecret, 'Accept: application/json'],
+    );
+    if ($credentialListing['status'] !== 200) {
+        throw new RuntimeException('The configure-minted operator credential was not authorized by the real HTTP route.');
+    }
+    $cases['minted_operator_http_authority'] = 'passed';
+
+    $processes = runCommand(['ps', '-axo', 'pid=,command='], $runRoot)->getOutput();
+    if (str_contains($processes, $operatorSecret)) {
+        throw new RuntimeException('Operator plaintext appeared in process arguments.');
+    }
+    $cases['operator_secret_absent_from_process_argv'] = 'passed';
+
+    $subsequentOutput .= $loginForm['headers'].$loginForm['body']
+        .$login['headers'].$login['body']
+        .$memberPage['headers'].$memberPage['body']
+        .$credentialListing['headers'].$credentialListing['body']
+        .$processes;
+    curl_close($client);
+
+    $listener = new Process(['lsof', '-nP', '-iTCP:'.$port, '-sTCP:LISTEN', '-t'], $runRoot);
+    $listener->run();
+    $listenerPid = trim($listener->getOutput());
+    if ($listener->getExitCode() !== 0 || preg_match('/^\d+$/D', $listenerPid) !== 1) {
+        throw new RuntimeException('The bounded loopback listener identity could not be observed.');
+    }
+
+    $server->stop(3, SIGTERM);
+    $subsequentOutput .= $server->getOutput().$server->getErrorOutput();
+    $server = null;
+    $probe = @fsockopen('127.0.0.1', $port, $probeError, $probeMessage, 0.5);
+    if (is_resource($probe)) {
+        fclose($probe);
+
+        throw new RuntimeException('The loopback listener survived bounded teardown.');
+    }
+    $cases['loopback_listener_clean_teardown'] = 'passed';
 
     $inventory = ReferenceConsumerInventory::inspect($projectRoot);
     if ($inventory !== array_fill_keys(ReferenceConsumerInventory::FAMILIES, [])) {
@@ -274,6 +521,7 @@ try {
         'exit_code' => $conformance->getExitCode(),
     ];
     $cases['fleet_conformance_v1'] = 'passed';
+    $subsequentOutput .= $conformance->getOutput().$conformance->getErrorOutput();
 
     $versions = [
         'php' => PHP_VERSION,
@@ -281,7 +529,32 @@ try {
         'laravel_installer' => trim(runCommand(['laravel', '--version', '--no-ansi'], $runRoot, $environment)->getOutput()),
         'framework' => $installed['laravel/framework']['version'] ?? null,
     ];
+
+    $fileEvidence = scanFiles($runRoot, $operatorSecret);
+    $databaseEvidence = scanDatabase($projectRoot.'/database/database.sqlite', $operatorSecret);
+    if (str_contains($subsequentOutput, $operatorSecret)) {
+        throw new RuntimeException('The operator secret appeared in output after its one-time observation.');
+    }
+    $cases['operator_secret_absent_from_files'] = 'passed';
+    $cases['operator_secret_absent_from_logs'] = 'passed';
+    $cases['operator_secret_absent_from_exceptions'] = 'passed';
+    $cases['operator_secret_absent_from_queue_payloads'] = 'passed';
+    $cases['operator_secret_absent_from_database_plaintext'] = 'passed';
+    $cases['operator_secret_absent_from_subsequent_output'] = 'passed';
+    $sinkEvidence = [
+        'process_argv' => ['processes_scanned' => substr_count(trim($processes), "\n") + 1],
+        'files' => $fileEvidence,
+        'logs' => ['files_scanned' => $fileEvidence['logs']],
+        'exceptions' => ['listener_stderr_scanned' => true, 'captured_throwables' => 0],
+        'queue_payloads' => ['database_payloads_scanned' => $databaseEvidence['queue_payloads']],
+        'database' => ['tables_scanned' => $databaseEvidence['tables']],
+        'subsequent_output' => ['bytes_scanned' => strlen($subsequentOutput)],
+    ];
+    unset($operatorSecret, $configureOutput, $subsequentOutput);
 } finally {
+    if ($server instanceof Process && $server->isRunning()) {
+        $server->stop(3, SIGTERM);
+    }
     removeTree($runRoot);
     $cleaned = ! file_exists($runRoot);
 }
@@ -300,7 +573,19 @@ writeJson($stampPath, [
     'commands' => $commands,
     'versions' => $versions,
     'cases' => $cases,
-    'disposable' => ['run_id' => $runId, 'runner_pid' => getmypid(), 'clean_teardown' => true],
+    'live_http' => [
+        'host' => '127.0.0.1',
+        'os_allocated_port' => $port,
+        'server_launcher_pid' => $serverPid,
+        'listener_pid' => (int) $listenerPid,
+        'package_identity' => $identity,
+        'standalone_login_status' => $login['status'],
+        'authenticated_member_status' => $memberPage['status'],
+        'operator_authority_status' => $credentialListing['status'],
+        'mail_transport' => 'array',
+    ],
+    'secret_sinks' => $sinkEvidence,
+    'disposable' => ['run_id' => $runId, 'runner_pid' => getmypid(), 'clean_teardown' => true, 'listener_closed' => true],
 ]);
 
 fwrite(STDOUT, "Reference-consumer archive proof passed.\nStamp: {$stampPath}\n");
