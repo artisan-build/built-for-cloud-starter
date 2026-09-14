@@ -42,14 +42,45 @@ function writeStarterConfigurationSpec(array $spec): string
     return $path;
 }
 
+/** @return array<string, array{type: string, contents?: string, target?: string}> */
+function starterGeneratedTreeSnapshot(): array
+{
+    $root = base_path();
+    $snapshot = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveCallbackFilterIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            static fn (SplFileInfo $file): bool => ! ($file->isDir() && in_array($file->getFilename(), ['.git', 'vendor'], true)),
+        ),
+    );
+
+    foreach ($iterator as $file) {
+        if (! $file instanceof SplFileInfo) {
+            continue;
+        }
+
+        $relative = substr($file->getPathname(), strlen($root) + 1);
+        if ($relative === '.phpunit.cache') {
+            continue;
+        }
+
+        $snapshot[$relative] = $file->isLink()
+            ? ['type' => 'link', 'target' => (string) readlink($file->getPathname())]
+            : ['type' => 'file', 'contents' => hash_file('sha256', $file->getPathname()) ?: 'unreadable'];
+    }
+    ksort($snapshot);
+
+    return $snapshot;
+}
+
 it('refuses invalid input before changing the generated tree', function (callable $change): void {
     $path = writeStarterConfigurationSpec($change(starterConfigurationSpec()));
-    $before = (string) file_get_contents(config_path('built-for-cloud.php'));
+    $before = starterGeneratedTreeSnapshot();
 
     try {
         expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))
             ->toBe(1)
-            ->and((string) file_get_contents(config_path('built-for-cloud.php')))->toBe($before)
+            ->and(starterGeneratedTreeSnapshot())->toBe($before)
             ->and(Credential::query()->count())->toBe(0);
     } finally {
         unlink($path);
@@ -72,13 +103,30 @@ it('refuses invalid input before changing the generated tree', function (callabl
 ]);
 
 it('requires an absolute regular spec path', function (string $path): void {
-    $before = (string) file_get_contents(config_path('built-for-cloud.php'));
+    $before = starterGeneratedTreeSnapshot();
 
     expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))
         ->toBe(1)
-        ->and((string) file_get_contents(config_path('built-for-cloud.php')))->toBe($before)
+        ->and(starterGeneratedTreeSnapshot())->toBe($before)
         ->and(Credential::query()->count())->toBe(0);
 })->with(['relative.json', __DIR__]);
+
+it('refuses a symlink spec path before changing the generated tree', function (): void {
+    $target = writeStarterConfigurationSpec(starterConfigurationSpec());
+    $path = $target.'.link';
+    symlink($target, $path);
+    $before = starterGeneratedTreeSnapshot();
+
+    try {
+        expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))
+            ->toBe(1)
+            ->and(starterGeneratedTreeSnapshot())->toBe($before)
+            ->and(Credential::query()->count())->toBe(0);
+    } finally {
+        unlink($path);
+        unlink($target);
+    }
+});
 
 it('writes the exact overlay and reruns without rewriting or reminting', function (): void {
     $path = writeStarterConfigurationSpec(starterConfigurationSpec());
