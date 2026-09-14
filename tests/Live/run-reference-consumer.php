@@ -734,9 +734,11 @@ try {
     }
 
     $managedBegin = httpRequest($managedClient, 'GET', 'http://127.0.0.1:'.$managedPort.'/bfc/managed/login');
+    if ($managedBegin['status'] !== 302) {
+        throw new RuntimeException("The generated app refused the managed handoff with HTTP {$managedBegin['status']}.");
+    }
     $authorizationUrl = responseLocation($managedBegin);
-    if ($managedBegin['status'] !== 302
-        || ! str_starts_with($authorizationUrl, 'https://127.0.0.1:'.$scalpelsPort.'/managed-auth/v1/authorize?state=')) {
+    if (! str_starts_with($authorizationUrl, 'https://127.0.0.1:'.$scalpelsPort.'/managed-auth/v1/authorize?state=')) {
         throw new RuntimeException('The generated app did not begin the Scalpels managed handoff.');
     }
     $managedAuthorize = httpRequest($managedClient, 'GET', $authorizationUrl);
