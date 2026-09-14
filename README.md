@@ -108,6 +108,43 @@ its attached resources after every deployment.
 - P6 install scaffold/conformance checks.
 - Credential-purpose declarations beyond the empty default.
 
+## Scaffold Proof
+
+Live-verified on 2026-09-14 from candidate
+`3f46e4a44e83846a7df5cebb9fe41f69c2ab336e` using a fresh `mktemp -d` directory. The proof used
+`git archive --format=zip --output="$PROOF/candidate.zip" HEAD`, inspected the ZIP with
+`unzip -Z1`, and installed it with `composer create-project --no-interaction` through a local
+Composer `package` repository as synthetic version `dev-proof`.
+
+- The 413,878-byte archive excluded `.env`, `vendor/`, `database/database.sqlite`, root
+  `README.md`, root `CLAUDE.md`, root `.solo/`, and the three kit-maintenance tests. It retained
+  the app-valid Feature, Integration, and Unit example tests, all app-facing stubs, and all three
+  skill trees.
+- Create-project installed 156 packages from scratch, discovered
+  `ArtisanBuild\BuiltForCloud\BuiltForCloudServiceProvider`, created a new SQLite database, and ran
+  all 33 application and package migrations. Every post-create hook completed successfully.
+- `composer show artisan-build/built-for-cloud --format=json` reported released version `v0.9.2`.
+  A bootstrapped application assertion confirmed the package provider was loaded and the `users`
+  auth provider used `ArtisanBuild\BuiltForCloud\User`; `php artisan migrate:status` reported every
+  migration as `Ran` in batch 1.
+- Installed inventory: `README.md`, `CLAUDE.md`, `.solo/workflow.md`, and each `SKILL.md` plus helper
+  under `.claude/skills/{bfc-app-manifest,bfc-logo,bfc-readme}`. All three helpers were executable;
+  `stubs/`, `.cloud/config.json`, Cloud identifier assignments, and kit-only document content were
+  absent.
+- `php .claude/skills/bfc-app-manifest/scripts/manifest.php --check --json` returned `ok: true` and
+  `status: unconfigured` for exactly the five null manifest values, six false UI flags, and empty
+  `credential_purposes`. Focused regression coverage also rejected a partial manifest.
+- The generated app's `composer ready` passed: IDE helpers generated, Rector and Pint passed,
+  PHPStan reported zero errors, Pest passed 5 tests with 22 assertions, and Composer reported no
+  security advisories.
+- Before the live proof, focused starter checks passed: manifest skills, 12 tests / 64 assertions;
+  archive boundary, 4 tests / 33 assertions; Pint passed both edited PHP files. Direct file-scoped
+  PHPStan was not applicable to the excluded archive test and separately exposed the pre-existing
+  untyped `finish(array $result)` signature in the standalone skill script.
+- After evidence capture, the resolved bounded temp tree containing the generated app and ZIP was
+  deleted; nonexistence was verified. The rejected earlier `composer archive` tree and failed clean
+  proof tree were also deleted before this successful run.
+
 ## Kit Maintenance
 
 Changes to this repository are inherited by every subsequently scaffolded app. Keep the template
