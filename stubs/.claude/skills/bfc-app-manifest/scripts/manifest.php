@@ -29,11 +29,19 @@ function finish(array $result, bool $json, int $code): never
 
 function usage(bool $json, string $message): never
 {
-    finish(['ok' => false, 'message' => $message, 'usage' => 'manifest.php (--check | --write --name=... --slug=... --description=... --icon=/...svg --product-url=https://...) [--file=...] [--json]'], $json, 2);
+    finish(['ok' => false, 'message' => $message, 'usage' => 'manifest.php (--check | --write --name=... --slug=... --description=... --icon=/...svg --product-url=https://scalpels.app/...) [--root=.] [--json]'], $json, 2);
 }
 
-$options = getopt('', ['check', 'write', 'name:', 'slug:', 'description:', 'icon:', 'product-url:', 'file:', 'json']);
-$known = ['--check', '--write', '--json', '--name=', '--slug=', '--description=', '--icon=', '--product-url=', '--file='];
+function validProductUrl(mixed $url): bool
+{
+    return is_string($url)
+        && filter_var($url, FILTER_VALIDATE_URL) !== false
+        && parse_url($url, PHP_URL_SCHEME) === 'https'
+        && parse_url($url, PHP_URL_HOST) === 'scalpels.app';
+}
+
+$options = getopt('', ['check', 'write', 'name:', 'slug:', 'description:', 'icon:', 'product-url:', 'root:', 'json']);
+$known = ['--check', '--write', '--json', '--name=', '--slug=', '--description=', '--icon=', '--product-url=', '--root='];
 foreach (array_slice($argv, 1) as $argument) {
     $recognized = false;
     foreach ($known as $option) {
@@ -50,7 +58,11 @@ if ($checking === $writing) {
     usage($json, 'Choose exactly one of --check or --write.');
 }
 
-$file = is_string($options['file'] ?? null) ? $options['file'] : 'config/built-for-cloud.php';
+$root = is_string($options['root'] ?? null) ? rtrim($options['root'], DIRECTORY_SEPARATOR) : '.';
+if ($root === '') {
+    $root = DIRECTORY_SEPARATOR;
+}
+$file = ($root === DIRECTORY_SEPARATOR ? '' : $root).DIRECTORY_SEPARATOR.'config'.DIRECTORY_SEPARATOR.'built-for-cloud.php';
 
 if ($writing) {
     $values = [];
@@ -65,8 +77,8 @@ if ($writing) {
     if (preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $values['slug']) !== 1) {
         $errors[] = 'slug must contain lowercase letters, digits, and single hyphens only';
     }
-    if (filter_var($values['product-url'], FILTER_VALIDATE_URL) === false || ! in_array(parse_url($values['product-url'], PHP_URL_SCHEME), ['http', 'https'], true)) {
-        $errors[] = 'product_url must be an http or https URL';
+    if (! validProductUrl($values['product-url'])) {
+        $errors[] = 'product_url must be an absolute HTTPS URL on scalpels.app';
     }
     if (preg_match('#^/[A-Za-z0-9._/-]+\.svg$#', $values['icon']) !== 1 || str_contains($values['icon'], '\\') || array_intersect(explode('/', $values['icon']), ['.', '..']) !== []) {
         $errors[] = 'icon must be a root-relative .svg path without traversal';
@@ -109,8 +121,8 @@ if (! is_array($config) || array_keys($config) !== ['manifest', 'ui']) {
         if (is_string($config['manifest']['slug'] ?? null) && preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $config['manifest']['slug']) !== 1) {
             $errors[] = 'manifest.slug has an invalid format';
         }
-        if (is_string($config['manifest']['product_url'] ?? null) && (filter_var($config['manifest']['product_url'], FILTER_VALIDATE_URL) === false || ! in_array(parse_url($config['manifest']['product_url'], PHP_URL_SCHEME), ['http', 'https'], true))) {
-            $errors[] = 'manifest.product_url must be an http or https URL';
+        if (! validProductUrl($config['manifest']['product_url'] ?? null)) {
+            $errors[] = 'manifest.product_url must be an absolute HTTPS URL on scalpels.app';
         }
         if (is_string($config['manifest']['icon'] ?? null) && (preg_match('#^/[A-Za-z0-9._/-]+\.svg$#', $config['manifest']['icon']) !== 1 || str_contains($config['manifest']['icon'], '\\') || array_intersect(explode('/', $config['manifest']['icon']), ['.', '..']) !== [])) {
             $errors[] = 'manifest.icon must be a root-relative .svg path without traversal';

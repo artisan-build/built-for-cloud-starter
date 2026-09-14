@@ -44,13 +44,13 @@ test('manifest writer emits and validates exactly the frozen overlay', function 
 
     try {
         $write = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [
-            '--write', '--file='.$file, '--name=Fixture App', '--slug=fixture-app',
+            '--write', '--root='.$root, '--name=Fixture App', '--slug=fixture-app',
             '--description=A useful fixture.', '--icon=/images/fixture.svg',
-            '--product-url=https://example.test/apps/fixture', '--json',
+            '--product-url=https://scalpels.app/products/fixture?source=test', '--json',
         ]);
         $result = json_decode($write->getOutput(), true, flags: JSON_THROW_ON_ERROR);
         $config = require $file;
-        $human = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--file='.$file]);
+        $human = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root]);
 
         expect($write->getExitCode())->toBe(0)
             ->and($result['ok'])->toBeTrue()
@@ -78,7 +78,7 @@ test('manifest validator distinguishes invalid shape and misuse', function (): v
     file_put_contents($file, "<?php return ['manifest' => [], 'enforcement' => []];\n");
 
     try {
-        $invalid = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--file='.$file, '--json']);
+        $invalid = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
         $misuse = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--wat', '--json']);
 
         expect($invalid->getExitCode())->toBe(1)
@@ -89,6 +89,58 @@ test('manifest validator distinguishes invalid shape and misuse', function (): v
         removeSkillFixture($root);
     }
 });
+
+test('manifest writer is confined to the app root config target', function (): void {
+    $root = skillFixture();
+    $arbitrary = $root.'/arbitrary.php';
+
+    try {
+        $process = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [
+            '--write', '--file='.$arbitrary, '--name=Fixture App', '--slug=fixture-app',
+            '--description=A useful fixture.', '--icon=/images/fixture.svg',
+            '--product-url=https://scalpels.app/products/fixture', '--json',
+        ]);
+
+        expect($process->getExitCode())->toBe(2)
+            ->and($arbitrary)->not->toBeFile()
+            ->and($root.'/config/built-for-cloud.php')->not->toBeFile();
+    } finally {
+        removeSkillFixture($root);
+    }
+});
+
+test('manifest rejects non-canonical Scalpels product URLs', function (string $url): void {
+    $root = skillFixture();
+    $arguments = [
+        '--write', '--root='.$root, '--name=Fixture App', '--slug=fixture-app',
+        '--description=A useful fixture.', '--icon=/images/fixture.svg',
+    ];
+
+    try {
+        $process = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), array_merge($arguments, ['--product-url='.$url, '--json']));
+
+        expect($process->getExitCode())->toBe(1)
+            ->and(json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR)['errors'])
+            ->toContain('product_url must be an absolute HTTPS URL on scalpels.app')
+            ->and($root.'/config/built-for-cloud.php')->not->toBeFile();
+
+        $validUrl = 'https://scalpels.app/products/fixture';
+        $valid = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), array_merge($arguments, ['--product-url='.$validUrl]));
+        expect($valid->getExitCode())->toBe(0);
+        $manifest = $root.'/config/built-for-cloud.php';
+        file_put_contents($manifest, str_replace($validUrl, $url, (string) file_get_contents($manifest)));
+        $check = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
+
+        expect($check->getExitCode())->toBe(1)
+            ->and(json_decode($check->getOutput(), true, flags: JSON_THROW_ON_ERROR)['errors'])
+            ->toContain('manifest.product_url must be an absolute HTTPS URL on scalpels.app');
+    } finally {
+        removeSkillFixture($root);
+    }
+})->with([
+    'http' => 'http://scalpels.app/products/fixture',
+    'foreign host' => 'https://example.test/products/fixture',
+]);
 
 test('logo creates the linked asset with labelled inference and preserves existing files', function (): void {
     $root = skillFixture();
@@ -126,7 +178,7 @@ test('logo rejects a manifest path that could escape public', function (): void 
 
 test('readme inspector labels linked inferred and unattributed facts', function (): void {
     $root = skillFixture();
-    file_put_contents($root.'/config/built-for-cloud.php', "<?php return ['manifest' => ['name' => 'Fixture App', 'slug' => 'fixture-app', 'description' => null, 'icon' => '/fixture.svg', 'product_url' => 'https://example.test']];\n");
+    file_put_contents($root.'/config/built-for-cloud.php', "<?php return ['manifest' => ['name' => 'Fixture App', 'slug' => 'fixture-app', 'description' => null, 'icon' => '/fixture.svg', 'product_url' => 'https://scalpels.app/products/fixture']];\n");
     file_put_contents($root.'/composer.json', json_encode(['name' => 'acme/fixture', 'scripts' => ['setup' => [], 'ready' => []]], JSON_THROW_ON_ERROR));
     file_put_contents($root.'/routes/web.php', "<?php\n");
 
