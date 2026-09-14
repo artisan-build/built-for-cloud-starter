@@ -458,7 +458,7 @@ try {
     ], ['Content-Type: application/x-www-form-urlencoded']);
     $memberPage = httpRequest($client, 'GET', 'http://127.0.0.1:'.$port.'/bfc/members');
     if ($login['status'] !== 302
-        || ! preg_match('#^Location: https?://127\.0\.0\.1(?::\d+)?/\r?$#mi', $login['headers'])
+        || ! preg_match('#^Location: https?://127\.0\.0\.1(?::\d+)?/?\r?$#mi', $login['headers'])
         || $memberPage['status'] !== 200
         || ! str_contains($memberPage['body'], 'loopback-owner@example.test')) {
         throw new RuntimeException('Standalone package login did not establish an authenticated web session.');
