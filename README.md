@@ -94,6 +94,20 @@ Laravel Cloud refuses to deploy an application with a bucket attached unless
 `league/flysystem-aws-s3-v3` is installed, so the adapter is part of the starter foundation. An app
 that will never use object storage may remove it with `composer remove league/flysystem-aws-s3-v3`.
 
+## Laravel Cloud Deployment
+
+Artisan Build agents handling Laravel Cloud work must follow
+`brain/skills/laravel-cloud-deploy/SKILL.md`. Start with read-only discovery. Credentials come from
+the authenticated Laravel Cloud CLI; discover application and environment identifiers rather than
+guessing or committing them. Keep `.cloud/config.json` uncommitted, and verify the application and
+its attached resources after every deployment.
+
+## TODO
+
+- P5-UI landing/package UI.
+- P6 install scaffold/conformance checks.
+- Credential-purpose declarations beyond the empty default.
+
 ## Kit Maintenance
 
 Changes to this repository are inherited by every subsequently scaffolded app. Keep the template
