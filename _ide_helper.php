@@ -5,7 +5,7 @@
 
 /**
  * A helper file for Laravel, to provide autocomplete information to your IDE
- * Generated for Laravel 13.26.1.
+ * Generated for Laravel 13.31.0.
  *
  * This file should not be included in your code, only analyzed by your IDE!
  *
@@ -2120,6 +2120,19 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Get the registered command instance with the given name, if any.
+         *
+         * @param string $name
+         * @return \Symfony\Component\Console\Command\Command|null
+         * @static
+         */
+        public static function findCommand($name)
+        {
+            /** @var \Illuminate\Foundation\Console\Kernel $instance */
+            return $instance->findCommand($name);
+        }
+
+        /**
          * Get all of the commands registered with the console.
          *
          * @return array
@@ -2438,7 +2451,7 @@ namespace Illuminate\Support\Facades {
         /**
          * Get the currently authenticated user.
          *
-         * @return \App\Models\User|null
+         * @return \ArtisanBuild\BuiltForCloud\User|null
          * @static
          */
         public static function user()
@@ -2476,7 +2489,7 @@ namespace Illuminate\Support\Facades {
          * Log the given user ID into the application without sessions or cookies.
          *
          * @param mixed $id
-         * @return \App\Models\User|false
+         * @return \ArtisanBuild\BuiltForCloud\User|false
          * @static
          */
         public static function onceUsingId($id)
@@ -2562,7 +2575,7 @@ namespace Illuminate\Support\Facades {
          *
          * @param mixed $id
          * @param bool $remember
-         * @return \App\Models\User|false
+         * @return \ArtisanBuild\BuiltForCloud\User|false
          * @static
          */
         public static function loginUsingId($id, $remember = false)
@@ -2630,7 +2643,7 @@ namespace Illuminate\Support\Facades {
          * The application must be using the AuthenticateSession middleware.
          *
          * @param string $password
-         * @return \App\Models\User|null
+         * @return \ArtisanBuild\BuiltForCloud\User|null
          * @throws \Illuminate\Auth\AuthenticationException
          * @static
          */
@@ -2656,7 +2669,7 @@ namespace Illuminate\Support\Facades {
         /**
          * Get the last user we attempted to authenticate.
          *
-         * @return \App\Models\User
+         * @return \ArtisanBuild\BuiltForCloud\User
          * @static
          */
         public static function getLastAttempted()
@@ -2780,7 +2793,7 @@ namespace Illuminate\Support\Facades {
         /**
          * Return the currently cached user.
          *
-         * @return \App\Models\User|null
+         * @return \ArtisanBuild\BuiltForCloud\User|null
          * @static
          */
         public static function getUser()
@@ -2842,7 +2855,7 @@ namespace Illuminate\Support\Facades {
         /**
          * Determine if the current user is authenticated. If not, throw an exception.
          *
-         * @return \App\Models\User
+         * @return \ArtisanBuild\BuiltForCloud\User
          * @throws \Illuminate\Auth\AuthenticationException
          * @static
          */
@@ -12098,6 +12111,19 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Assert if a mailable was sent exactly once.
+         *
+         * @param string $mailable
+         * @return void
+         * @static
+         */
+        public static function assertSentOnce($mailable)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\MailFake $instance */
+            $instance->assertSentOnce($mailable);
+        }
+
+        /**
          * Determine if a mailable was not sent or queued to be sent based on a truth-test callback.
          *
          * @param string|\Closure $mailable
@@ -12175,6 +12201,19 @@ namespace Illuminate\Support\Facades {
         {
             /** @var \Illuminate\Support\Testing\Fakes\MailFake $instance */
             $instance->assertQueuedTimes($mailable, $times);
+        }
+
+        /**
+         * Assert if a mailable was queued exactly once.
+         *
+         * @param string $mailable
+         * @return void
+         * @static
+         */
+        public static function assertQueuedOnce($mailable)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\MailFake $instance */
+            $instance->assertQueuedOnce($mailable);
         }
 
         /**
@@ -12753,6 +12792,19 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Assert if a notification was sent on-demand exactly once.
+         *
+         * @param string $notification
+         * @return void
+         * @static
+         */
+        public static function assertSentOnDemandOnce($notification)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\NotificationFake $instance */
+            $instance->assertSentOnDemandOnce($notification);
+        }
+
+        /**
          * Assert if a notification was sent a number of times.
          *
          * @param mixed $notifiable
@@ -12765,6 +12817,20 @@ namespace Illuminate\Support\Facades {
         {
             /** @var \Illuminate\Support\Testing\Fakes\NotificationFake $instance */
             $instance->assertSentToTimes($notifiable, $notification, $times);
+        }
+
+        /**
+         * Assert if a notification was sent exactly once.
+         *
+         * @param mixed $notifiable
+         * @param string $notification
+         * @return void
+         * @static
+         */
+        public static function assertSentToOnce($notifiable, $notification)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\NotificationFake $instance */
+            $instance->assertSentToOnce($notifiable, $notification);
         }
 
         /**
@@ -13635,6 +13701,19 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Register a callback to be executed when creating job payloads.
+         *
+         * @param callable|null $callback
+         * @return void
+         * @static
+         */
+        public static function createPayloadUsing($callback)
+        {
+            /** @var \Illuminate\Queue\QueueManager $instance */
+            $instance->createPayloadUsing($callback);
+        }
+
+        /**
          * Resolve the default connection name for a given queueable instance.
          *
          * @param object $queueable
@@ -13927,6 +14006,54 @@ namespace Illuminate\Support\Facades {
         {
             /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
             return $instance->reservedSize($queue);
+        }
+
+        /**
+         * Get the number of jobs across every queue.
+         *
+         * @return int
+         * @static
+         */
+        public static function totalSize()
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->totalSize();
+        }
+
+        /**
+         * Get the number of pending jobs across every queue.
+         *
+         * @return int
+         * @static
+         */
+        public static function totalPendingSize()
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->totalPendingSize();
+        }
+
+        /**
+         * Get the number of delayed jobs across every queue.
+         *
+         * @return int
+         * @static
+         */
+        public static function totalDelayedSize()
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->totalDelayedSize();
+        }
+
+        /**
+         * Get the number of reserved jobs across every queue.
+         *
+         * @return int
+         * @static
+         */
+        public static function totalReservedSize()
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->totalReservedSize();
         }
 
         /**
@@ -14384,19 +14511,6 @@ namespace Illuminate\Support\Facades {
             //Method inherited from \Illuminate\Queue\Queue 
             /** @var \Illuminate\Queue\DatabaseQueue $instance */
             return $instance->getJobExpiration($job);
-        }
-
-        /**
-         * Register a callback to be executed when creating job payloads.
-         *
-         * @param callable|null $callback
-         * @return void
-         * @static
-         */
-        public static function createPayloadUsing($callback)
-        {
-            //Method inherited from \Illuminate\Queue\Queue 
-            \Illuminate\Queue\DatabaseQueue::createPayloadUsing($callback);
         }
 
         /**
@@ -19073,7 +19187,7 @@ namespace Illuminate\Support\Facades {
          * Call the given Closure with this instance then return the instance.
          *
          * @param (callable($this): mixed)|null $callback
-         * @return ($callback is null ? \Illuminate\Support\HigherOrderTapProxy : $this)
+         * @return ($callback is null ? \Illuminate\Support\HigherOrderTapProxy<$this> : $this)
          * @static
          */
         public static function tap($callback = null)
@@ -24302,6 +24416,18 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Get the URL of the running Vite development server.
+         *
+         * @return string|null
+         * @static
+         */
+        public static function devServerUrl()
+        {
+            /** @var \Illuminate\Foundation\Vite $instance */
+            return $instance->devServerUrl();
+        }
+
+        /**
          * Get the URL for an asset.
          *
          * @param string $asset
@@ -25508,6 +25634,32 @@ namespace  {
         {
             /** @var \Illuminate\Database\Eloquent\Builder $instance */
             return $instance->whereKeyNot($id);
+        }
+
+        /**
+         * Add an "or where" clause on the primary key to the query.
+         *
+         * @param mixed $id
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function orWhereKey($id)
+        {
+            /** @var \Illuminate\Database\Eloquent\Builder $instance */
+            return $instance->orWhereKey($id);
+        }
+
+        /**
+         * Add an "or where not" clause on the primary key to the query.
+         *
+         * @param mixed $id
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function orWhereKeyNot($id)
+        {
+            /** @var \Illuminate\Database\Eloquent\Builder $instance */
+            return $instance->orWhereKeyNot($id);
         }
 
         /**
@@ -28009,6 +28161,65 @@ namespace  {
         {
             /** @var \Illuminate\Database\Query\Builder $instance */
             return $instance->orWhereRaw($sql, $bindings);
+        }
+
+        /**
+         * Add a "where binary" clause to the query.
+         *
+         * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+         * @param string $value
+         * @param string $boolean
+         * @param bool $not
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function whereBinary($column, $value, $boolean = 'and', $not = false)
+        {
+            /** @var \Illuminate\Database\Query\Builder $instance */
+            return $instance->whereBinary($column, $value, $boolean, $not);
+        }
+
+        /**
+         * Add an "or where binary" clause to the query.
+         *
+         * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+         * @param string $value
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function orWhereBinary($column, $value)
+        {
+            /** @var \Illuminate\Database\Query\Builder $instance */
+            return $instance->orWhereBinary($column, $value);
+        }
+
+        /**
+         * Add a "where not binary" clause to the query.
+         *
+         * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+         * @param string $value
+         * @param string $boolean
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function whereNotBinary($column, $value, $boolean = 'and')
+        {
+            /** @var \Illuminate\Database\Query\Builder $instance */
+            return $instance->whereNotBinary($column, $value, $boolean);
+        }
+
+        /**
+         * Add an "or where not binary" clause to the query.
+         *
+         * @param \Illuminate\Contracts\Database\Query\Expression|string $column
+         * @param string $value
+         * @return \Illuminate\Database\Eloquent\Builder<static>
+         * @static
+         */
+        public static function orWhereNotBinary($column, $value)
+        {
+            /** @var \Illuminate\Database\Query\Builder $instance */
+            return $instance->orWhereNotBinary($column, $value);
         }
 
         /**

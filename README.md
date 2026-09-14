@@ -35,7 +35,7 @@ PHP-only workflow with fewer moving parts.
 
 - Laravel 13.19 or newer. This floor supports Laravel Cloud managed queues and must not be relaxed.
 - Livewire 4 and Flux 2 (free), with Flux Pro available as an explicit per-project upgrade.
-- Fortify authentication, two-factor authentication, and passkey support.
+- Built for Cloud's package-owned user model, migrations, and standalone authentication foundation.
 - Prebuilt Tailwind and Flux assets served from `public/build`.
 - S3-compatible object storage support through `league/flysystem-aws-s3-v3`.
 - Pint, Rector, PHPStan/Larastan, Pest, Composer audit, and IDE helper generation.
@@ -65,8 +65,8 @@ Composer dependencies.
 
 ## Static Assets
 
-The application loads `public/build/assets/app.css`, `public/build/assets/fonts.css`, and
-`public/build/assets/passkeys.js` directly. There is no default source asset pipeline.
+The application loads `public/build/assets/app.css` and `public/build/assets/fonts.css` directly.
+There is no default source asset pipeline.
 
 When new Tailwind classes are needed, use the opt-in standalone optimizer and commit its output:
 
