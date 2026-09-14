@@ -125,7 +125,7 @@ test('it preserves existing skill files while installing the remaining tree', fu
     }
 });
 
-test('the committed archive excludes only the kit README', function (): void {
+test('the committed archive excludes kit-only files and retains scaffold inputs', function (): void {
     $archivePath = sys_get_temp_dir().'/built-for-cloud-archive-'.bin2hex(random_bytes(8)).'.tar';
 
     try {
@@ -137,6 +137,12 @@ test('the committed archive excludes only the kit README', function (): void {
         $archive = new PharData($archivePath);
 
         expect($archive->offsetExists('README.md'))->toBeFalse()
+            ->and($archive->offsetExists('tests/Unit/BuiltForCloudSkillsTest.php'))->toBeFalse()
+            ->and($archive->offsetExists('tests/Unit/InstallStubsTest.php'))->toBeFalse()
+            ->and($archive->offsetExists('tests/Unit/StarterConventionsTest.php'))->toBeFalse()
+            ->and($archive->offsetExists('tests/Feature/ExampleTest.php'))->toBeTrue()
+            ->and($archive->offsetExists('tests/Integration/BuiltForCloudConfigurationTest.php'))->toBeTrue()
+            ->and($archive->offsetExists('tests/Unit/ExampleTest.php'))->toBeTrue()
             ->and($archive->offsetExists('stubs/README.md'))->toBeTrue()
             ->and($archive->offsetExists('stubs/.claude/skills/bfc-app-manifest/SKILL.md'))->toBeTrue()
             ->and($archive->offsetExists('stubs/.claude/skills/bfc-logo/scripts/create-logo.php'))->toBeTrue()
