@@ -15,6 +15,7 @@ CHANGELOG.md export-ignore
 # leading slash so stubs/CLAUDE.md is NOT caught by this rule.
 /CLAUDE.md export-ignore
 /.solo export-ignore
+/composer.lock export-ignore
 
 # Same rule, applied to a workflow rather than docs. This one asserts things about the REPOSITORY it
 # lives in — that "Allow auto-merge" is on and that `main` has required status checks — and both are
