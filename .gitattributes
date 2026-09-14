@@ -7,7 +7,7 @@
 *.php diff=php
 
 CHANGELOG.md export-ignore
-README.md export-ignore
+/README.md export-ignore
 
 # These describe the KIT itself, so they must not ship into scaffolded projects — a project born
 # asserting "PR target repo: artisan-build/built-for-cloud-starter" sends agents at the wrong repository.

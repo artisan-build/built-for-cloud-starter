@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Symfony\Component\Process\Process;
+
 function makeStubInstallerFixture(): string
 {
     $root = sys_get_temp_dir().'/built-for-cloud-stubs-'.bin2hex(random_bytes(8));
@@ -86,5 +88,27 @@ test('it preserves existing documents while installing eligible stubs', function
             ->and($root.'/stubs')->not->toBeDirectory();
     } finally {
         removeStubInstallerFixture($root);
+    }
+});
+
+test('the committed archive excludes only the kit README', function (): void {
+    $archivePath = sys_get_temp_dir().'/built-for-cloud-archive-'.bin2hex(random_bytes(8)).'.tar';
+
+    try {
+        (new Process(
+            ['git', 'archive', '--format=tar', '--output='.$archivePath, 'HEAD'],
+            dirname(__DIR__, 2),
+        ))->mustRun();
+
+        $archive = new PharData($archivePath);
+
+        expect($archive->offsetExists('README.md'))->toBeFalse()
+            ->and($archive->offsetExists('stubs/README.md'))->toBeTrue();
+    } finally {
+        unset($archive);
+
+        if (is_file($archivePath)) {
+            unlink($archivePath);
+        }
     }
 });
