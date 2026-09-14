@@ -195,6 +195,11 @@ function scanDatabase(string $path, string $secret): array
     return ['tables' => count($tables), 'queue_payloads' => $queuePayloads];
 }
 
+function credentialCount(string $databasePath): int
+{
+    return (int) (new PDO('sqlite:'.$databasePath))->query('SELECT COUNT(*) FROM credentials')?->fetchColumn();
+}
+
 /** @return array{files: int, logs: int} */
 function scanFiles(string $root, string $secret): array
 {
@@ -256,6 +261,50 @@ PHP;
     }
 
     return $observation;
+}
+
+/** @return array<string, string> */
+function runInventoryControls(): array
+{
+    $controls = [
+        'app_human_identity' => ['app/Models/User.php', '<?php class User implements \\Illuminate\\Contracts\\Auth\\Authenticatable {}'],
+        'auth_migrations' => ['database/migrations/2026_01_01_000000_create_users_table.php', '<?php return true;'],
+        'fortify' => ['app/Providers/FortifyServiceProvider.php', '<?php final class FortifyServiceProvider {}'],
+        'app_auth_surface' => ['app/Http/Controllers/Auth/LoginController.php', '<?php final class LoginController {}'],
+        'foreign_human_guards' => ['config/auth.php', "<?php return ['guards' => [], 'providers' => []];"],
+        'starter_root_collision' => ['routes/web.php', "<?php Route::get('/', fn () => 'collision');"],
+    ];
+    $verdicts = [];
+
+    foreach ($controls as $family => [$path, $contents]) {
+        $root = sys_get_temp_dir().'/bfc-live-inventory-'.bin2hex(random_bytes(6));
+        mkdir($root.'/config', 0700, true);
+        file_put_contents($root.'/config/auth.php', <<<'PHP'
+<?php
+
+use ArtisanBuild\BuiltForCloud\User;
+
+return [
+    'guards' => ['web' => ['driver' => 'session', 'provider' => 'users']],
+    'providers' => ['users' => ['driver' => 'eloquent', 'model' => User::class]],
+];
+PHP);
+        if (! is_dir(dirname($root.'/'.$path))) {
+            mkdir(dirname($root.'/'.$path), 0700, true);
+        }
+        file_put_contents($root.'/'.$path, $contents);
+
+        try {
+            if (ReferenceConsumerInventory::inspect($root)[$family] === []) {
+                throw new RuntimeException("The {$family} inventory positive control did not turn red.");
+            }
+            $verdicts[$family] = 'observed_red';
+        } finally {
+            removeTree($root);
+        }
+    }
+
+    return $verdicts;
 }
 
 $options = runnerOptions();
@@ -361,19 +410,92 @@ try {
     $specPath = $runRoot.'/product.json';
     writeJson($specPath, $spec);
 
-    $invalid = $spec;
-    $invalid['unknown'] = true;
-    $invalidPath = $runRoot.'/invalid.json';
-    writeJson($invalidPath, $invalid);
-    $before = treeSnapshot($projectRoot);
-    $refusal = new Process([
-        PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$invalidPath, '--no-interaction',
-    ], $projectRoot, $environment, null, 120);
-    $refusal->run();
-    if ($refusal->getExitCode() !== 1 || treeSnapshot($projectRoot) !== $before) {
-        throw new RuntimeException('Invalid input changed the generated tree or returned the wrong status.');
+    $missingTopLevel = $spec;
+    unset($missingTopLevel['ui']);
+    $missingManifest = $spec;
+    unset($missingManifest['manifest']['icon']);
+    $listMapping = $spec;
+    $listMapping['credentials']['app_purposes'] = [];
+    $invalidDocuments = [
+        'unknown_top_level_key' => [...$spec, 'unknown' => true],
+        'missing_top_level_key' => $missingTopLevel,
+        'missing_manifest_key' => $missingManifest,
+        'unknown_manifest_key' => array_replace_recursive($spec, ['manifest' => ['unknown' => 'no']]),
+        'invalid_manifest_value' => array_replace_recursive($spec, ['manifest' => ['slug' => 'Not A Slug']]),
+        'non_boolean_affordance' => array_replace_recursive($spec, ['ui' => ['landing_page' => 1]]),
+        'reserved_signing_root' => array_replace_recursive($spec, ['credentials' => ['app_purposes' => ['archive.consume' => 'signing_root']]]),
+        'unmapped_displayed_purpose' => array_replace_recursive($spec, ['ui' => ['credential_purposes' => ['archive.missing']]]),
+        'duplicate_displayed_purpose' => array_replace_recursive($spec, ['ui' => ['credential_purposes' => ['archive.consume', 'archive.consume']]]),
+        'list_in_place_of_mapping' => $listMapping,
+    ];
+    $invalidInputVerdicts = [];
+    foreach ($invalidDocuments as $name => $invalid) {
+        $invalidPath = $runRoot.'/invalid-'.$name.'.json';
+        writeJson($invalidPath, $invalid);
+        $before = treeSnapshot($projectRoot);
+        $refusal = new Process([
+            PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$invalidPath, '--no-interaction',
+        ], $projectRoot, $environment, null, 120);
+        $refusal->run();
+        if ($refusal->getExitCode() !== 1 || treeSnapshot($projectRoot) !== $before || credentialCount($projectRoot.'/database/database.sqlite') !== 0) {
+            throw new RuntimeException("Invalid input case {$name} changed the generated tree, minted, or returned the wrong status.");
+        }
+        $invalidInputVerdicts[$name] = 'refused_without_write';
+    }
+
+    $malformedPath = $runRoot.'/invalid-json.json';
+    file_put_contents($malformedPath, '{');
+    $symlinkPath = $runRoot.'/product.link';
+    symlink($specPath, $symlinkPath);
+    foreach ([
+        'malformed_json' => $malformedPath,
+        'relative_path' => 'product.json',
+        'directory_path' => $runRoot,
+        'symlink_path' => $symlinkPath,
+    ] as $name => $path) {
+        $before = treeSnapshot($projectRoot);
+        $refusal = new Process([
+            PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$path, '--no-interaction',
+        ], $projectRoot, $environment, null, 120);
+        $refusal->run();
+        if ($refusal->getExitCode() !== 1 || treeSnapshot($projectRoot) !== $before || credentialCount($projectRoot.'/database/database.sqlite') !== 0) {
+            throw new RuntimeException("Invalid path case {$name} changed the generated tree, minted, or returned the wrong status.");
+        }
+        $invalidInputVerdicts[$name] = 'refused_without_write';
     }
     $cases['invalid_input_no_write'] = 'passed';
+
+    $lockSabotage = $projectRoot.'/.env.bfc.lock';
+    symlink($specPath, $lockSabotage);
+    $beforeFileFailure = treeSnapshot($projectRoot);
+    $fileFailure = new Process([
+        PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$specPath, '--no-interaction',
+    ], $projectRoot, $environment, null, 120);
+    $fileFailure->run();
+    if ($fileFailure->getExitCode() !== 1
+        || treeSnapshot($projectRoot) !== $beforeFileFailure
+        || credentialCount($projectRoot.'/database/database.sqlite') !== 0) {
+        throw new RuntimeException('A file-stage failure changed the generated tree or minted an operator credential.');
+    }
+    unlink($lockSabotage);
+    $cases['file_stage_failure_mints_nothing'] = 'passed';
+
+    $database = new PDO('sqlite:'.$projectRoot.'/database/database.sqlite');
+    $database->exec("CREATE TRIGGER bfc_runner_fail_operator_mint BEFORE INSERT ON credentials BEGIN SELECT RAISE(ABORT, 'runner-forced-mint-failure'); END");
+    $mintFailure = new Process([
+        PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$specPath, '--no-interaction',
+    ], $projectRoot, $environment, null, 120);
+    $mintFailure->run();
+    $mintFailureOutput = $mintFailure->getOutput().$mintFailure->getErrorOutput();
+    if ($mintFailure->getExitCode() !== 1
+        || credentialCount($projectRoot.'/database/database.sqlite') !== 0
+        || ! str_contains($mintFailureOutput, 'Install summary:')
+        || ! str_contains($mintFailureOutput, 'environment: unchanged')
+        || ! str_contains($mintFailureOutput, 'composer: unchanged')
+        || ! str_contains($mintFailureOutput, 'configuration: replaced')) {
+        throw new RuntimeException('The forced mint failure did not report completed value-free stages with zero mint.');
+    }
+    $database->exec('DROP TRIGGER bfc_runner_fail_operator_mint');
 
     $configure = runCommand([
         PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$specPath, '--no-interaction',
@@ -388,7 +510,11 @@ try {
     if ($operatorSecret === '' || substr_count($configureOutput, $operatorSecret) !== 1) {
         throw new RuntimeException('The configure command did not reveal one operator secret exactly once.');
     }
+    if (! str_contains($configureOutput, 'configuration: unchanged') || credentialCount($projectRoot.'/database/database.sqlite') !== 1) {
+        throw new RuntimeException('The post-failure configure rerun was not recoverable and idempotent for completed file stages.');
+    }
     $cases['configure_and_operator_mint'] = 'passed';
+    $cases['mint_failure_recoverable_rerun'] = 'passed';
 
     $rerun = runCommand([
         PHP_BINARY, 'artisan', 'bfc:starter:configure', '--spec='.$specPath, '--no-interaction',
@@ -512,6 +638,8 @@ try {
         throw new RuntimeException('The generated app contains an app-owned auth or root artifact.');
     }
     $cases['independent_auth_root_inventory'] = 'passed';
+    $inventoryControls = runInventoryControls();
+    $cases['inventory_positive_controls'] = 'passed';
 
     $conformance = runCommand([
         PHP_BINARY, 'artisan', 'test', 'tests/Feature/BuiltForCloudConformanceTest.php', '--colors=never',
@@ -573,6 +701,17 @@ writeJson($stampPath, [
     'commands' => $commands,
     'versions' => $versions,
     'cases' => $cases,
+    'invalid_input_matrix' => $invalidInputVerdicts,
+    'install_recovery' => [
+        'file_stage_failure_exit_code' => $fileFailure->getExitCode(),
+        'file_stage_failure_credential_count' => 0,
+        'mint_failure_exit_code' => $mintFailure->getExitCode(),
+        'mint_failure_completed_stages' => ['environment' => 'unchanged', 'composer' => 'unchanged', 'configuration' => 'replaced'],
+        'mint_failure_credential_count' => 0,
+        'recovery_configuration_state' => 'unchanged',
+        'recovery_credential_count' => 1,
+    ],
+    'inventory_positive_controls' => $inventoryControls,
     'live_http' => [
         'host' => '127.0.0.1',
         'os_allocated_port' => $port,
