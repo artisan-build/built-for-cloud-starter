@@ -5,9 +5,8 @@ declare(strict_types=1);
 /*
  * Installs this starter kit's documentation stubs into a freshly scaffolded project.
  *
- * The kit's own CLAUDE.md and .solo/ are export-ignored (see .gitattributes): they describe the KIT,
- * not the app you just scaffolded, and an agent that reads them as authoritative will open PRs
- * against the starter kit repo instead of yours. The files in stubs/ are the generic replacements.
+ * The kit's own README.md, CLAUDE.md, and .solo/ are export-ignored (see .gitattributes): they
+ * describe the KIT, not the app you just scaffolded. The files in stubs/ are app-facing replacements.
  *
  * Composer runs this from post-create-project-cmd, after which stubs/ deletes itself.
  *
@@ -17,6 +16,7 @@ declare(strict_types=1);
 $moves = [
     'stubs/CLAUDE.md' => 'CLAUDE.md',
     'stubs/workflow.md' => '.solo/workflow.md',
+    'stubs/README.md' => 'README.md',
 ];
 
 foreach ($moves as $from => $to) {

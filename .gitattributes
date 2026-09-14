@@ -7,11 +7,11 @@
 *.php diff=php
 
 CHANGELOG.md export-ignore
-README.md export-ignore
+/README.md export-ignore
 
 # These describe the KIT itself, so they must not ship into scaffolded projects — a project born
-# asserting "PR target repo: artisan-build/laravel-nodeless" sends agents at the wrong repository.
-# Generic replacements live in stubs/ and are installed by post-create-project-cmd. Anchored with a
+# asserting "PR target repo: artisan-build/built-for-cloud-starter" sends agents at the wrong repository.
+# App-facing replacements live in stubs/ and are installed by post-create-project-cmd. Anchored with a
 # leading slash so stubs/CLAUDE.md is NOT caught by this rule.
 /CLAUDE.md export-ignore
 /.solo export-ignore
