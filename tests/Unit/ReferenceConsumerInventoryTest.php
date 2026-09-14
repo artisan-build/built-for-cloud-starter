@@ -28,7 +28,7 @@ PHP);
 }
 
 it('finds no app-owned auth or root surface in the exported starter tree', function (): void {
-    expect(ReferenceConsumerInventory::inspect(base_path()))
+    expect(ReferenceConsumerInventory::inspect(dirname(__DIR__, 2)))
         ->toBe(array_fill_keys(ReferenceConsumerInventory::FAMILIES, []));
 });
 
