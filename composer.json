@@ -72,6 +72,9 @@
         "rector": [
             "rector process"
         ],
+        "rector:check": [
+            "rector process app bootstrap/app.php bootstrap/providers.php config public resources routes tests --dry-run"
+        ],
         "stan": [
             "phpstan analyse --memory-limit=512M"
         ],

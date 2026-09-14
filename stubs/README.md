@@ -38,8 +38,14 @@ composer ready
 
 ## Deployment
 
-{{FILL: Document the Laravel Cloud deployment workflow and environments without committing secrets,
-app IDs, or machine-specific configuration.}}
+Artisan Build agents handling Laravel Cloud work must follow
+`brain/skills/laravel-cloud-deploy/SKILL.md`. Start with read-only discovery. Credentials come from
+the authenticated Laravel Cloud CLI; discover application and environment identifiers rather than
+guessing or committing them. Keep `.cloud/config.json` uncommitted, and verify the application and
+its attached resources after every deployment.
+
+{{FILL: Document the app-specific Laravel Cloud deployment workflow and environments without
+committing secrets, identifiers, or machine-specific configuration.}}
 
 ## Repository
 
