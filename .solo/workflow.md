@@ -1,11 +1,17 @@
-# Workflow — built-for-cloud-starter
+# Workflow - built-for-cloud-starter
 
 Project profile for the `multi-agent-build` skill. The coordinator agent reads this FIRST.
 Keep it truthful as the project evolves.
 
-Note: this repo IS the `artisan-build/built-for-cloud-starter` starter kit for Built for Cloud products (local folder `built-for-cloud-starter`), derived from `artisan-build/laravel-nodeless` (git remote `upstream`).
-Changes here propagate to every project spawned from it — hold the template to a
-higher hygiene bar than a normal app (no machine-specific paths, no personal config in git).
+This repo IS the `artisan-build/built-for-cloud-starter` starter kit for Built for Cloud products.
+It supplies the common Laravel application foundation so a new product can focus on its core problem
+and be ready to join the Built for Cloud ecosystem. It is derived from
+`artisan-build/laravel-nodeless`, retained as the `upstream` git remote.
+
+Changes here propagate to every project spawned with
+`laravel new {app} --using=artisan-build/built-for-cloud-starter`. Hold the template to a higher
+hygiene bar than a normal app: no machine-specific paths, personal config, secrets, Node, npm, Vite,
+or frontend build step.
 
 ## Phase & mode
 - phase: launched (published starter kit, maintained incrementally)

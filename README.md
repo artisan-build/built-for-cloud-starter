@@ -1,166 +1,106 @@
-# Laravel Nodeless Starter Kit
+# Built for Cloud Starter Kit
 
-Laravel Nodeless is a Laravel starter kit for building Livewire applications without a frontend build system.
+`artisan-build/built-for-cloud-starter` is the Laravel starter kit for Built for Cloud products. It
+provides the common application foundation so a new product can focus on its core problem and be
+prepared for the Built for Cloud ecosystem from its first commit.
 
-It starts from Laravel's official Livewire starter kit, then removes Node, npm, Vite, Tailwind compilation, and all related CI steps. The result is a PHP-first application scaffold that can be installed, developed, tested, and deployed with Composer and Laravel tooling only.
+The kit is derived from [`artisan-build/laravel-nodeless`](https://github.com/artisan-build/laravel-nodeless)
+and retains its PHP-first constraint: there is no Node, npm, Vite, or frontend build step. Upstream
+nodeless fixes are tracked through this repository's `upstream` git remote.
 
-## Philosophy
+## Create An App
 
-Laravel is productive because the framework gives you a cohesive, batteries-included path for building server-rendered applications. This starter kit keeps that path intentionally small:
+```bash
+laravel new {app} --using=artisan-build/built-for-cloud-starter
+```
+
+Replace `{app}` with the directory name for the new application. The scaffold includes app-facing
+`README.md`, `CLAUDE.md`, and `.solo/workflow.md` documents with `{{FILL}}` markers. Complete those
+markers before development or agent delegation so the product, non-goals, repository, and workflow
+are unambiguous.
+
+## Nodeless By Design
 
 - No Node runtime requirement.
 - No npm install step.
 - No Vite dev server.
 - No frontend build step in local development, CI, or deployment.
-- Livewire and Flux remain the primary UI layer.
-- Static CSS, JavaScript, and fonts are checked in under `public/build` and served directly by Laravel.
+- Livewire and Flux are the primary UI layer.
+- Static CSS, JavaScript, and fonts are committed under `public/build` and served directly by Laravel.
 
-This tradeoff is deliberate. You give up an editable Tailwind/Vite pipeline in exchange for a starter kit that works in PHP-only environments and has fewer moving parts.
+This tradeoff is deliberate. Apps give up an editable Tailwind/Vite pipeline in exchange for a
+PHP-only workflow with fewer moving parts.
 
-## What's Included
+## Included Foundation
 
-- Laravel 13.19+ — the floor is deliberate: Laravel Cloud **managed queues** require
-  `laravel/framework` v11.55.0+, v12.63.0+ or v13.19.0+, and a deploy with a managed queue
-  attached fails to boot below it. Do not relax this constraint.
-- Livewire 4
-- Flux 2 (free); Flux Pro remains an optional per-project upgrade
-- Fortify authentication
-- Two-factor authentication
-- Passkey support
-- Prebuilt Tailwind/Flux assets served from `public/build`
-- `league/flysystem-aws-s3-v3` for S3-compatible object storage
+- Laravel 13.19 or newer. This floor supports Laravel Cloud managed queues and must not be relaxed.
+- Livewire 4 and Flux 2 (free), with Flux Pro available as an explicit per-project upgrade.
+- Fortify authentication, two-factor authentication, and passkey support.
+- Prebuilt Tailwind and Flux assets served from `public/build`.
+- S3-compatible object storage support through `league/flysystem-aws-s3-v3`.
+- Pint, Rector, PHPStan/Larastan, Pest, Composer audit, and IDE helper generation.
 
-## What's Removed
+## App Workflow
 
-- `package.json`
-- `package-lock.json`
-- `node_modules`
-- `vite.config.js`
-- `resources/css/app.css`
-- `resources/js/*`
-- npm and Vite steps from Composer scripts and GitHub Actions
-
-## Installation
-
-Create a new Laravel application using this starter kit:
+After scaffolding, prepare the application with:
 
 ```bash
-laravel new {project} --using=artisan-build/laravel-nodeless
+composer setup
 ```
 
-Replace `{project}` with the directory name for your new application.
-
-## Getting Started
-
-Install dependencies and prepare the application:
+Run the local server with:
 
 ```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
+composer dev
 ```
 
-Run the development server:
+Before a pull request, run the complete conformance gate:
 
 ```bash
-php artisan serve
+composer ready
 ```
 
-Run the test suite:
+`composer ready` regenerates IDE helpers, applies Rector and Pint, runs PHPStan and Pest, and audits
+Composer dependencies.
 
-```bash
-php artisan test
-```
+## Static Assets
 
-## Composer Scripts
+The application loads `public/build/assets/app.css`, `public/build/assets/fonts.css`, and
+`public/build/assets/passkeys.js` directly. There is no default source asset pipeline.
 
-This starter kit includes an opinionated Composer workflow for keeping Laravel applications ready to ship:
-
-- `composer setup` installs dependencies, creates `.env`, generates the app key, and runs migrations.
-- `composer dev` starts Laravel's local development server without Vite or Node.
-- `composer lint` runs Laravel Pint and fixes PHP style issues.
-- `composer test:lint` runs Laravel Pint in check-only mode.
-- `composer lint:check` is an alias for the check-only Pint run.
-- `composer rector` runs Rector with the Laravel code quality, collection, and Laravel level sets.
-- `composer stan` runs PHPStan through Larastan at level 6.
-- `composer test` clears cached config, checks PHP formatting, and runs the Laravel test suite.
-- `composer ide-helper` regenerates Laravel IDE Helper files and model mixins.
-- `composer ready` runs IDE helper generation, Rector, Pint, PHPStan, tests, and Composer audit.
-- `composer report` runs Rector, Pint, PHPStan, tests, and Composer audit as a non-blocking report.
-- `composer ci:check` runs the default project test check used by this starter kit.
-- `php artisan fresh` resets the database to a fresh, seeded state. You can add additional steps to set your application up for local development.
-- `php artisan flux:pro` deliberately opts a project into Flux Pro by adding its Composer repository and requiring `livewire/flux-pro`. The starter kit uses free Flux and needs no Flux credentials unless you run this command. The command assumes your Pro credentials are already saved globally; if they are not, run `php artisan flux:activate` instead.
-
-## Working With Assets
-
-The starter kit intentionally does not require a source asset pipeline. Application CSS, font CSS, fonts, and the passkey browser helper are committed as static files in `public/build/assets`.
-
-By default, there is still no frontend build step. The application loads `public/build/assets/app.css`, `public/build/assets/fonts.css`, and `public/build/assets/passkeys.js` directly.
-
-If CSS size matters or you add Tailwind classes and want to regenerate the checked-in CSS, run the opt-in optimizer:
+When new Tailwind classes are needed, use the opt-in standalone optimizer and commit its output:
 
 ```bash
 php artisan tailwind:optimize
 ```
 
-The command downloads the standalone Tailwind CSS CLI for your operating system, caches it under `storage/app/tools`, scans the configured Tailwind sources, and writes the optimized output to `public/build/assets/app.css`. It does not require Node, npm, or Vite, and it is not part of the default setup or CI workflow.
+The command downloads a standalone Tailwind CSS binary under `storage/app/tools`; it does not use
+Node, npm, or Vite and is not part of setup or CI.
 
-You can force a fresh CLI download or change paths when needed:
+## Flux Pro
+
+The scaffold uses free Flux and needs no Flux credentials. A project can deliberately opt in to
+Flux Pro after scaffolding:
 
 ```bash
-php artisan tailwind:optimize --force-download
-php artisan tailwind:optimize --tailwind-version=v4.3.0
-php artisan tailwind:optimize --input=resources/css/tailwind.css --output=public/build/assets/app.css
+php artisan flux:pro
 ```
+
+That project must then provide its own Composer authentication and CI secret configuration.
 
 ## Object Storage
 
-`league/flysystem-aws-s3-v3` is a runtime dependency of the kit rather than something you add when a project first needs a bucket. Laravel Cloud refuses to deploy an application that has a bucket attached without it:
+Laravel Cloud refuses to deploy an application with a bucket attached unless
+`league/flysystem-aws-s3-v3` is installed, so the adapter is part of the starter foundation. An app
+that will never use object storage may remove it with `composer remove league/flysystem-aws-s3-v3`.
 
-```
-Your application has an attached bucket but is missing the [league/flysystem-aws-s3-v3] package.
-Please detach the bucket or install the package using [composer require league/flysystem-aws-s3-v3] and retry.
-```
+## Kit Maintenance
 
-That is a failed deployment rather than a warning, and nothing ships until the package is installed. Most applications scaffolded from this kit end up wanting a bucket, so it arrives already installed.
+Changes to this repository are inherited by every subsequently scaffolded app. Keep the template
+free of machine-specific paths, personal configuration, secrets, and frontend build tooling.
 
-If yours does not, removing it is one command:
+The kit's root `README.md`, `CLAUDE.md`, and `.solo/` describe this repository and are excluded from
+Composer archives. App-facing replacements live in `stubs/` and are installed without overwriting
+existing destination files when Composer creates a project.
 
-```bash
-composer remove league/flysystem-aws-s3-v3
-```
-
-## Dependency Maintenance
-
-The kit has no git tags, so `laravel new --using=` resolves `dev-main`. Whatever is in `composer.lock` on `main` is inherited by every project scaffolded from the kit, immediately — which makes stale or vulnerable dependencies here a downstream problem rather than a local one.
-
-Three things keep that from drifting:
-
-- **`.github/dependabot.yml`** — weekly updates for Composer packages and GitHub Actions. Patch and minor are batched into one grouped PR per ecosystem; majors arrive individually. The GitHub Actions half matters because the workflows pin actions by full commit SHA, which is correct practice but means a pin ages silently — there is no version string for anyone to notice going stale.
-- **`composer audit` in CI** — a blocking step in `tests.yml`, matching how `composer ready` already treats audit locally. Dependabot proposes fixes; audit is what fails loudly when something slips through the gap between an advisory being published and a bump landing.
-- **Dependabot alerts and automated security fixes** — enabled at the repository level. These are settings rather than config in `dependabot.yml`, and version updates alone do not give you prompt security fixes.
-
-`dependabot.yml` **does** ship into scaffolded projects: it stays true in any Laravel repo. Delete it if you don't want it.
-
-The one step that needs it to fail loudly: a newly-published advisory anywhere in the tree will turn CI red on unrelated PRs, with no commit having caused it. That is a true signal rather than a bug, and the audit step runs after the tests so you keep the test result when it happens.
-
-### Auto-merge is not included, on purpose
-
-`.github/workflows/dependabot-auto-merge.yml` auto-merges patch and minor Dependabot PRs on green CI, and is **export-ignored** — it does not ship into scaffolded projects.
-
-It depends on repository settings a fresh repo will not have. GitHub only offers auto-merge on a pull request that *cannot* be merged immediately, so without required status checks there is nothing to wait for, and the workflow would merge dependency updates with no CI gate at all. A new private repo silently merging unreviewed changes into `main` is not a reasonable default to inherit. (The workflow also guards on `github.repository`, so a copied file no-ops regardless.)
-
-To opt in, copy the workflow from this repository, change the `github.repository` guard to your own repo, and then set up what makes it safe:
-
-```bash
-gh api -X PATCH repos/OWNER/REPO -F allow_auto_merge=true
-```
-
-Then add a ruleset on `main` requiring your CI checks to pass — without it, auto-merge has nothing to gate on. Majors are never auto-merged.
-
-Auto-merge covers **Composer updates only**. A `github-actions` update edits files under `.github/workflows` by definition, and `GITHUB_TOKEN` is refused on any merge that touches them — `workflows` is a GitHub App permission that cannot be granted in a workflow's `permissions:` block. Lifting that needs a PAT or App token with workflow scope kept as a repository secret, which is a genuine increase in attack surface on a public repo and not something to enable by default. Action bumps are a few PRs a year; merge them by hand. Advisories arrive through Composer, which is the case this automation exists for.
-
-## Repository
-
-This project lives at `artisan-build/laravel-nodeless`.
+This repository lives at `artisan-build/built-for-cloud-starter`.
