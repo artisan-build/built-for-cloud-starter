@@ -160,7 +160,7 @@ function httpRequest(CurlHandle $client, string $method, string $url, array $dat
 
 function responseLocation(array $response): string
 {
-    if (preg_match('/^Location:\s*([^\r\n]+)$/mi', $response['headers'], $matches) !== 1) {
+    if (preg_match('/^Location:\s*([^\r\n]+)\r?$/mi', $response['headers'], $matches) !== 1) {
         throw new RuntimeException('A loopback redirect did not carry a Location header.');
     }
 
