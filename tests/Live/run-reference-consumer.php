@@ -158,6 +158,15 @@ function httpRequest(CurlHandle $client, string $method, string $url, array $dat
     ];
 }
 
+function responseLocation(array $response): string
+{
+    if (preg_match('/^Location:\s*([^\r\n]+)$/mi', $response['headers'], $matches) !== 1) {
+        throw new RuntimeException('A loopback redirect did not carry a Location header.');
+    }
+
+    return trim($matches[1]);
+}
+
 /** @return array{tables: int, queue_payloads: int} */
 function scanDatabase(string $path, string $secret): array
 {
@@ -317,6 +326,8 @@ $commands = [];
 $cases = [];
 $cleaned = false;
 $server = null;
+$managedServer = null;
+$scalpelsFixture = null;
 
 if (! is_string($packageRepository)
     || ! preg_match('/^[0-9a-f]{40}$/D', $options['starter-sha'])
@@ -633,6 +644,153 @@ try {
     }
     $cases['loopback_listener_clean_teardown'] = 'passed';
 
+    $managedPortReservation = reserveLoopbackPort();
+    $managedPort = $managedPortReservation['port'];
+    fclose($managedPortReservation['reservation']);
+    $scalpelsPortReservation = reserveLoopbackPort();
+    $scalpelsPort = $scalpelsPortReservation['port'];
+    fclose($scalpelsPortReservation['reservation']);
+    $scalpelsCertificate = $runRoot.'/scalpels-authority.pem';
+    $scalpelsStatus = $runRoot.'/scalpels-authority-status.json';
+    $managedClientSecret = bin2hex(random_bytes(32));
+    $scalpelsFixturePath = $projectRoot.'/vendor/artisan-build/built-for-cloud/tests/Live/managed-authority.php';
+    if (! is_file($scalpelsFixturePath)) {
+        throw new RuntimeException('The exact package archive did not contain its Scalpels managed-auth fixture.');
+    }
+
+    $scalpelsFixture = new Process([
+        PHP_BINARY,
+        $scalpelsFixturePath,
+        (string) $scalpelsPort,
+        $scalpelsCertificate,
+        'http://127.0.0.1:'.$managedPort,
+        $scalpelsStatus,
+    ], $projectRoot, [
+        ...$environment,
+        'BFC_MANAGED_FIXTURE_CLIENT_SECRET' => $managedClientSecret,
+        'BFC_MANAGED_FIXTURE_APP_KEY' => base64_encode(random_bytes(32)),
+        'BFC_MANAGED_CLIENT_APP_KEY' => base64_encode(random_bytes(32)),
+    ], null, null);
+    $scalpelsFixture->start();
+    $scalpelsFixturePid = $scalpelsFixture->getPid();
+    $deadline = microtime(true) + 20;
+    while (! str_contains($scalpelsFixture->getOutput(), 'READY') && microtime(true) < $deadline) {
+        if (! $scalpelsFixture->isRunning()) {
+            throw new RuntimeException('The disposable Scalpels fixture exited before readiness.');
+        }
+        usleep(100_000);
+    }
+    if (! str_contains($scalpelsFixture->getOutput(), 'READY') || ! is_file($scalpelsCertificate)) {
+        throw new RuntimeException('The disposable Scalpels fixture did not become ready.');
+    }
+
+    $authorityUpdate = $database->prepare(<<<'SQL'
+        UPDATE bfc_authority
+        SET mode = 'managed', generation = 7, issuer = :issuer,
+            connection_id = 'live-connection', organization_id = 'live-organization',
+            installation_id = 'live-installation', authority_base_url = :base_url
+        WHERE key = 'installation'
+        SQL);
+    $authorityUpdate->execute([
+        'issuer' => 'https://live-issuer.example.test',
+        'base_url' => 'https://127.0.0.1:'.$scalpelsPort,
+    ]);
+
+    $managedServer = new Process([
+        PHP_BINARY, 'artisan', 'serve', '--host=127.0.0.1', '--port='.$managedPort, '--no-reload',
+    ], $projectRoot, [
+        ...$environment,
+        'MAIL_MAILER' => 'array',
+        'BUILT_FOR_CLOUD_MANAGED_CLIENT_SECRET' => $managedClientSecret,
+        'BUILT_FOR_CLOUD_MANAGED_CA_BUNDLE' => $scalpelsCertificate,
+    ], null, null);
+    $managedServer->start();
+    $managedServerPid = $managedServer->getPid();
+
+    $managedClient = curl_init();
+    if (! $managedClient instanceof CurlHandle) {
+        throw new RuntimeException('Unable to initialize the managed-entry HTTP client.');
+    }
+    curl_setopt_array($managedClient, [
+        CURLOPT_COOKIEFILE => '',
+        CURLOPT_CAINFO => $scalpelsCertificate,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+    ]);
+    $managedReady = false;
+    $deadline = microtime(true) + 20;
+    do {
+        if (! $managedServer->isRunning()) {
+            throw new RuntimeException('The managed generated-app listener exited before readiness.');
+        }
+        try {
+            $managedReady = httpRequest($managedClient, 'GET', 'http://127.0.0.1:'.$managedPort.'/')['status'] === 200;
+        } catch (RuntimeException) {
+            usleep(100_000);
+        }
+    } while (! $managedReady && microtime(true) < $deadline);
+    if (! $managedReady) {
+        throw new RuntimeException('The managed generated-app listener did not become ready.');
+    }
+
+    $managedBegin = httpRequest($managedClient, 'GET', 'http://127.0.0.1:'.$managedPort.'/bfc/managed/login');
+    $authorizationUrl = responseLocation($managedBegin);
+    if ($managedBegin['status'] !== 302
+        || ! str_starts_with($authorizationUrl, 'https://127.0.0.1:'.$scalpelsPort.'/managed-auth/v1/authorize?state=')) {
+        throw new RuntimeException('The generated app did not begin the Scalpels managed handoff.');
+    }
+    $managedAuthorize = httpRequest($managedClient, 'GET', $authorizationUrl);
+    $callbackUrl = responseLocation($managedAuthorize);
+    if ($managedAuthorize['status'] !== 302
+        || ! str_starts_with($callbackUrl, 'http://127.0.0.1:'.$managedPort.'/bfc/managed/callback?')) {
+        throw new RuntimeException('The Scalpels fixture did not return a bounded callback.');
+    }
+    $managedCallback = httpRequest($managedClient, 'GET', $callbackUrl);
+    $managedHome = httpRequest($managedClient, 'GET', 'http://127.0.0.1:'.$managedPort.'/bfc/ui');
+    $scalpelsObservation = json_decode((string) file_get_contents($scalpelsStatus), true, flags: JSON_THROW_ON_ERROR);
+    if ($managedCallback['status'] !== 302
+        || responseLocation($managedCallback) !== 'http://127.0.0.1:'.$managedPort
+        || $managedHome['status'] !== 200
+        || ! str_contains($managedHome['body'], 'data-testid="ui-shell"')
+        || ($scalpelsObservation['exchange_count'] ?? null) !== 1) {
+        throw new RuntimeException('The disposable Scalpels managed entry did not establish the generated-app session.');
+    }
+
+    $managedListener = new Process(['lsof', '-nP', '-iTCP:'.$managedPort, '-sTCP:LISTEN', '-t'], $runRoot);
+    $managedListener->run();
+    $managedListenerPid = trim($managedListener->getOutput());
+    $scalpelsListener = new Process(['lsof', '-nP', '-iTCP:'.$scalpelsPort, '-sTCP:LISTEN', '-t'], $runRoot);
+    $scalpelsListener->run();
+    $scalpelsListenerPid = trim($scalpelsListener->getOutput());
+    if (preg_match('/^\d+$/D', $managedListenerPid) !== 1 || preg_match('/^\d+$/D', $scalpelsListenerPid) !== 1) {
+        throw new RuntimeException('Managed-entry listener identities could not be observed.');
+    }
+
+    $subsequentOutput .= $managedBegin['headers'].$managedBegin['body']
+        .$managedAuthorize['headers'].$managedAuthorize['body']
+        .$managedCallback['headers'].$managedCallback['body']
+        .$managedHome['headers'].$managedHome['body'];
+    curl_close($managedClient);
+    $managedServer->stop(3, SIGTERM);
+    $subsequentOutput .= $managedServer->getOutput().$managedServer->getErrorOutput();
+    $managedServer = null;
+    $scalpelsFixture->stop(3, SIGTERM);
+    $subsequentOutput .= $scalpelsFixture->getOutput().$scalpelsFixture->getErrorOutput();
+    $scalpelsFixture = null;
+    foreach ([$managedPort, $scalpelsPort] as $closedPort) {
+        $closedProbe = @fsockopen('127.0.0.1', $closedPort, $closedError, $closedMessage, 0.5);
+        if (is_resource($closedProbe)) {
+            fclose($closedProbe);
+
+            throw new RuntimeException("Managed-entry listener {$closedPort} survived bounded teardown.");
+        }
+    }
+    scanFiles($runRoot, $managedClientSecret);
+    scanDatabase($projectRoot.'/database/database.sqlite', $managedClientSecret);
+    unset($managedClientSecret);
+    $cases['disposable_scalpels_managed_entry'] = 'passed';
+    $cases['managed_entry_listener_clean_teardown'] = 'passed';
+
     $inventory = ReferenceConsumerInventory::inspect($projectRoot);
     if ($inventory !== array_fill_keys(ReferenceConsumerInventory::FAMILIES, [])) {
         throw new RuntimeException('The generated app contains an app-owned auth or root artifact.');
@@ -683,6 +841,12 @@ try {
     if ($server instanceof Process && $server->isRunning()) {
         $server->stop(3, SIGTERM);
     }
+    if ($managedServer instanceof Process && $managedServer->isRunning()) {
+        $managedServer->stop(3, SIGTERM);
+    }
+    if ($scalpelsFixture instanceof Process && $scalpelsFixture->isRunning()) {
+        $scalpelsFixture->stop(3, SIGTERM);
+    }
     removeTree($runRoot);
     $cleaned = ! file_exists($runRoot);
 }
@@ -723,6 +887,21 @@ writeJson($stampPath, [
         'authenticated_member_status' => $memberPage['status'],
         'operator_authority_status' => $credentialListing['status'],
         'mail_transport' => 'array',
+    ],
+    'managed_entry' => [
+        'fixture' => 'disposable-local-scalpels-managed-auth-v1',
+        'generated_app_port' => $managedPort,
+        'generated_app_launcher_pid' => $managedServerPid,
+        'generated_app_listener_pid' => (int) $managedListenerPid,
+        'scalpels_port' => $scalpelsPort,
+        'scalpels_launcher_pid' => $scalpelsFixturePid,
+        'scalpels_listener_pid' => (int) $scalpelsListenerPid,
+        'begin_status' => $managedBegin['status'],
+        'authorize_status' => $managedAuthorize['status'],
+        'callback_status' => $managedCallback['status'],
+        'authenticated_ui_status' => $managedHome['status'],
+        'exchange_count' => $scalpelsObservation['exchange_count'],
+        'clean_teardown' => true,
     ],
     'secret_sinks' => $sinkEvidence,
     'disposable' => ['run_id' => $runId, 'runner_pid' => getmypid(), 'clean_teardown' => true, 'listener_closed' => true],
