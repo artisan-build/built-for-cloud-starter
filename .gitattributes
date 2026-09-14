@@ -26,3 +26,9 @@ CHANGELOG.md export-ignore
 # .github/dependabot.yml is deliberately NOT listed here — it stays true in any Laravel repo, so
 # scaffolded projects get dependency updates for free and can delete the file if they'd rather not.
 /.github/workflows/dependabot-auto-merge.yml export-ignore
+
+# These exercise kit-only source state (stubs, Git metadata, and the export-ignored kit documents).
+# The generated app keeps the remaining application tests as its starter suite.
+/tests/Unit/BuiltForCloudSkillsTest.php export-ignore
+/tests/Unit/InstallStubsTest.php export-ignore
+/tests/Unit/StarterConventionsTest.php export-ignore
