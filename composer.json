@@ -87,6 +87,7 @@
         "ide-helper": [
             "@php artisan ide-helper:generate",
             "@php artisan ide-helper:models --write-mixin --no-interaction",
+            "@php -r \"file_put_contents('_ide_helper_models.php', rtrim((string) file_get_contents('_ide_helper_models.php')) . PHP_EOL);\"",
             "@php artisan ide-helper:meta"
         ],
         "ready": [

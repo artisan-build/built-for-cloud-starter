@@ -31,6 +31,15 @@ it('owns only the pending D-UI-3 configuration overlay', function (): void {
 });
 
 it('merges package defaults and auto-discovers the released provider', function (): void {
+    $composer = json_decode((string) file_get_contents(base_path('composer.json')), true, flags: JSON_THROW_ON_ERROR);
+    $constraint = data_get($composer, 'require.artisan-build/built-for-cloud');
+    $version = InstalledVersions::getVersion('artisan-build/built-for-cloud');
+
+    expect($constraint)->toBe('^0.9')
+        ->and($version)->toBeString();
+    assert(is_string($constraint));
+    assert(is_string($version));
+
     expect(config('built-for-cloud.manifest'))->toBe([
         'name' => null,
         'slug' => null,
@@ -47,9 +56,11 @@ it('merges package defaults and auto-discovers the released provider', function 
         'credential_purposes' => [],
     ])->and(config('built-for-cloud.product'))->toBe(config('app.name'))
         ->and(config('built-for-cloud.credentials.guard'))->toBe('bfc')
+        ->and(config('auth.defaults.guard'))->toBe('web')
         ->and(config('auth.providers.users.model'))->toBe(User::class)
         ->and(app()->getLoadedProviders())->toHaveKey(BuiltForCloudServiceProvider::class, true)
-        ->and(InstalledVersions::getPrettyVersion('artisan-build/built-for-cloud'))->toBe('v0.9.2');
+        ->and(version_compare($version, '0.9.0', '>='))->toBeTrue()
+        ->and(version_compare($version, '0.10.0', '<'))->toBeTrue();
 });
 
 it('runs fresh package-owned migrations on sqlite', function (): void {
