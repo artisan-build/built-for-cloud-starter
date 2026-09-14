@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ArtisanBuild\BuiltForCloud\Credential;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 function starterConfigurationSpec(array $overrides = []): array
@@ -166,6 +167,36 @@ it('writes the exact overlay and reruns without rewriting or reminting', functio
             ->and(filemtime($configurationPath))->toBe($mtime)
             ->and(Credential::query()->count())->toBe(1);
     } finally {
+        file_put_contents($configurationPath, $original);
+        unlink($path);
+    }
+});
+
+it('reports completed file stages when minting fails and recovers on rerun', function (): void {
+    $path = writeStarterConfigurationSpec(starterConfigurationSpec());
+    $configurationPath = config_path('built-for-cloud.php');
+    $original = (string) file_get_contents($configurationPath);
+    DB::statement("CREATE TRIGGER bfc_test_fail_operator_mint BEFORE INSERT ON credentials BEGIN SELECT RAISE(ABORT, 'test-forced-mint-failure'); END");
+
+    try {
+        expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))->toBe(1);
+        $failureOutput = Artisan::output();
+
+        expect($failureOutput)->toContain(
+            'Install summary:',
+            'environment: unchanged',
+            'composer: unchanged',
+            'configuration: replaced',
+        )->and(Credential::query()->count())->toBe(0);
+
+        DB::statement('DROP TRIGGER bfc_test_fail_operator_mint');
+
+        expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))->toBe(0);
+
+        expect(Artisan::output())->toContain('configuration: unchanged', 'shown once')
+            ->and(Credential::query()->count())->toBe(1);
+    } finally {
+        DB::statement('DROP TRIGGER IF EXISTS bfc_test_fail_operator_mint');
         file_put_contents($configurationPath, $original);
         unlink($path);
     }

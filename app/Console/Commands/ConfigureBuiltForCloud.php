@@ -69,9 +69,18 @@ final class ConfigureBuiltForCloud extends Command
 
         $stages = [...$scaffold->stages(), 'configuration' => $configState->value];
 
-        if ($this->mintInstallOperatorCredential(
-            force: (bool) $this->option('force-operator-credential'),
-        ) !== self::SUCCESS) {
+        try {
+            $mintResult = $this->mintInstallOperatorCredential(
+                force: (bool) $this->option('force-operator-credential'),
+            );
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+            $this->summarize($stages);
+
+            return self::FAILURE;
+        }
+
+        if ($mintResult !== self::SUCCESS) {
             $this->summarize($stages);
 
             return self::FAILURE;
