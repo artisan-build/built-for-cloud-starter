@@ -3,6 +3,8 @@
 
 declare(strict_types=1);
 
+use ArtisanBuild\BuiltForCloud\User;
+use Illuminate\Support\Sleep;
 use Symfony\Component\Process\Process;
 use Tests\Support\ReferenceConsumerInventory;
 
@@ -538,10 +540,10 @@ try {
 
     $identity = createStandaloneUser($projectRoot, $environment);
     if ($identity !== [
-        'user_class' => 'ArtisanBuild\\BuiltForCloud\\User',
+        'user_class' => User::class,
         'guard_driver' => 'session',
         'guard_provider' => 'users',
-        'provider_model' => 'ArtisanBuild\\BuiltForCloud\\User',
+        'provider_model' => User::class,
         'login_get' => true,
         'login_post' => true,
     ]) {
@@ -577,7 +579,7 @@ try {
                 break;
             }
         } catch (RuntimeException) {
-            usleep(100_000);
+            Sleep::usleep(100_000);
         }
     } while (microtime(true) < $deadline);
 
@@ -678,7 +680,7 @@ try {
         if (! $scalpelsFixture->isRunning()) {
             throw new RuntimeException('The disposable Scalpels fixture exited before readiness.');
         }
-        usleep(100_000);
+        Sleep::usleep(100_000);
     }
     if (! str_contains($scalpelsFixture->getOutput(), 'READY') || ! is_file($scalpelsCertificate)) {
         throw new RuntimeException('The disposable Scalpels fixture did not become ready.');
@@ -726,7 +728,7 @@ try {
         try {
             $managedReady = httpRequest($managedClient, 'GET', 'http://127.0.0.1:'.$managedPort.'/')['status'] === 200;
         } catch (RuntimeException) {
-            usleep(100_000);
+            Sleep::usleep(100_000);
         }
     } while (! $managedReady && microtime(true) < $deadline);
     if (! $managedReady) {

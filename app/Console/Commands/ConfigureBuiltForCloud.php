@@ -189,7 +189,7 @@ final class ConfigureBuiltForCloud extends Command
      */
     private function assertPackageConfiguration(array $manifest, array $appPurposes): void
     {
-        $repository = app(Repository::class);
+        $repository = resolve(Repository::class);
         $manifestKey = implode('.', ['built-for-cloud', 'manifest']);
         $purposesKey = implode('.', ['built-for-cloud', 'credentials', 'app_purposes']);
         $previousManifest = $repository->get($manifestKey);
@@ -199,7 +199,7 @@ final class ConfigureBuiltForCloud extends Command
             $repository->set($manifestKey, $manifest);
             $repository->set($purposesKey, $appPurposes);
             LandingManifest::fromConfiguration();
-            $registry = app(AppPurposeRegistry::class);
+            $registry = resolve(AppPurposeRegistry::class);
 
             foreach ($appPurposes as $appPurpose => $purpose) {
                 if (! is_string($appPurpose)

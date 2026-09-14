@@ -2,6 +2,22 @@
 
 declare(strict_types=1);
 
+use ArtisanBuild\BuiltForCloud\Commands\ConsoleReKeyCommand;
+use ArtisanBuild\BuiltForCloud\Commands\ConsoleRetireKeyCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CreateAdminCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CredentialActivateCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CredentialListCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CredentialMintCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CredentialRevokeCommand;
+use ArtisanBuild\BuiltForCloud\Commands\CredentialRotateCommand;
+use ArtisanBuild\BuiltForCloud\Commands\HmacRewrapCommand;
+use ArtisanBuild\BuiltForCloud\Commands\InstallOperatorCredentialCommand;
+use ArtisanBuild\BuiltForCloud\Commands\OutboxDrainCommand;
+use ArtisanBuild\BuiltForCloud\Commands\OwnershipMintClaimCommand;
+use ArtisanBuild\BuiltForCloud\Commands\OwnershipRemintOwnerTokenCommand;
+use ArtisanBuild\BuiltForCloud\Commands\SigningRootProvisionCommand;
+use ArtisanBuild\BuiltForCloud\Commands\SubjectOffboardCommand;
+use ArtisanBuild\BuiltForCloud\Commands\WarnExpiringCredentialsCommand;
 use ArtisanBuild\BuiltForCloud\CredentialPurpose;
 use ArtisanBuild\BuiltForCloud\Jobs\DeliverOwnershipWebhook;
 use ArtisanBuild\BuiltForCloud\Testing\ConsumerConformance;
@@ -59,22 +75,22 @@ it('passes the version 1 reference-consumer conformance spec', function (): void
         ]),
         'legacy_removal' => [],
         'system_authority' => $sorted([
-            'ArtisanBuild\BuiltForCloud\Commands\ConsoleReKeyCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\ConsoleRetireKeyCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CreateAdminCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CredentialActivateCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CredentialListCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CredentialMintCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CredentialRevokeCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\CredentialRotateCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\HmacRewrapCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\InstallOperatorCredentialCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\OutboxDrainCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\OwnershipMintClaimCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\OwnershipRemintOwnerTokenCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\SigningRootProvisionCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\SubjectOffboardCommand',
-            'ArtisanBuild\BuiltForCloud\Commands\WarnExpiringCredentialsCommand',
+            ConsoleReKeyCommand::class,
+            ConsoleRetireKeyCommand::class,
+            CreateAdminCommand::class,
+            CredentialActivateCommand::class,
+            CredentialListCommand::class,
+            CredentialMintCommand::class,
+            CredentialRevokeCommand::class,
+            CredentialRotateCommand::class,
+            HmacRewrapCommand::class,
+            InstallOperatorCredentialCommand::class,
+            OutboxDrainCommand::class,
+            OwnershipMintClaimCommand::class,
+            OwnershipRemintOwnerTokenCommand::class,
+            SigningRootProvisionCommand::class,
+            SubjectOffboardCommand::class,
+            WarnExpiringCredentialsCommand::class,
             DeliverOwnershipWebhook::class,
         ]),
         'no_signing_path' => [],
