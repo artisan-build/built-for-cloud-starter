@@ -187,7 +187,8 @@ it('reports completed file stages when minting fails and recovers on rerun', fun
             'environment: unchanged',
             'composer: unchanged',
             'configuration: replaced',
-        )->and(Credential::query()->count())->toBe(0);
+        )->not->toContain('test-forced-mint-failure')
+            ->and(Credential::query()->count())->toBe(0);
 
         DB::statement('DROP TRIGGER bfc_test_fail_operator_mint');
 

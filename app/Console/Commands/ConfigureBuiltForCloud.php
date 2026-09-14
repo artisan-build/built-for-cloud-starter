@@ -14,6 +14,7 @@ use Illuminate\Contracts\Config\Repository;
 use InvalidArgumentException;
 use JsonException;
 use RuntimeException;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Throwable;
 
 final class ConfigureBuiltForCloud extends Command
@@ -68,23 +69,29 @@ final class ConfigureBuiltForCloud extends Command
         }
 
         $stages = [...$scaffold->stages(), 'configuration' => $configState->value];
+        $mintOutput = new BufferedOutput;
 
         try {
-            $mintResult = $this->mintInstallOperatorCredential(
-                force: (bool) $this->option('force-operator-credential'),
+            $mintResult = $this->runCommand(
+                'bfc:install:operator-credential',
+                (bool) $this->option('force-operator-credential') ? ['--force' => true] : [],
+                $mintOutput,
             );
-        } catch (Throwable $exception) {
-            $this->error($exception->getMessage());
+        } catch (Throwable) {
+            $this->error('The operator credential could not be minted.');
             $this->summarize($stages);
 
             return self::FAILURE;
         }
 
         if ($mintResult !== self::SUCCESS) {
+            $this->error('The operator credential could not be minted.');
             $this->summarize($stages);
 
             return self::FAILURE;
         }
+
+        $this->output->write($mintOutput->fetch());
 
         $this->summarize($stages);
 
