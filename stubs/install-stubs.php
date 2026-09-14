@@ -19,6 +19,19 @@ $moves = [
     'stubs/README.md' => 'README.md',
 ];
 
+foreach (glob('stubs/.claude/skills/*', GLOB_ONLYDIR) ?: [] as $skill) {
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($skill, FilesystemIterator::SKIP_DOTS),
+    );
+
+    foreach ($files as $file) {
+        if ($file->isFile()) {
+            $relative = substr($file->getPathname(), strlen('stubs/'));
+            $moves[$file->getPathname()] = $relative;
+        }
+    }
+}
+
 foreach ($moves as $from => $to) {
     if (! is_file($from) || file_exists($to)) {
         continue;
@@ -33,9 +46,14 @@ foreach ($moves as $from => $to) {
     rename($from, $to);
 }
 
-foreach (glob('stubs/*') ?: [] as $leftover) {
-    if (is_file($leftover)) {
-        unlink($leftover);
+if (is_dir('stubs')) {
+    $leftovers = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator('stubs', FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+
+    foreach ($leftovers as $leftover) {
+        $leftover->isDir() ? rmdir($leftover->getPathname()) : unlink($leftover->getPathname());
     }
 }
 
