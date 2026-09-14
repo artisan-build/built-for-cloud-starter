@@ -1,9 +1,9 @@
-# Workflow — laravel-nodeless
+# Workflow — built-for-cloud-starter
 
 Project profile for the `multi-agent-build` skill. The coordinator agent reads this FIRST.
 Keep it truthful as the project evolves.
 
-Note: this repo IS the `artisan-build/laravel-nodeless` starter kit (local folder `nodeless`).
+Note: this repo IS the `artisan-build/built-for-cloud-starter` starter kit for Built for Cloud products (local folder `built-for-cloud-starter`), derived from `artisan-build/laravel-nodeless` (git remote `upstream`).
 Changes here propagate to every project spawned from it — hold the template to a
 higher hygiene bar than a normal app (no machine-specific paths, no personal config in git).
 
@@ -73,12 +73,12 @@ unreviewable diff.
 
 ## Ship details
 - branch naming: feat/<slug> (fix/<slug> for fixes, chore/<slug> for maintenance)
-- PR target repo: artisan-build/laravel-nodeless
+- PR target repo: artisan-build/built-for-cloud-starter
 - release / split steps: none (consumed via `composer create-project` / starter-kit installer)
 
 ## Plan & coordination
 - plan location: per-build Solo scratchpad (no standing PRD)
-- Solo project: nodeless (44)
+- Solo project: built-for-cloud-starter (55)
 - run-log: per-build scratchpad named `<branch>-run-log`; coordinator appends at every transition
 
 ## Stack notes / quirks
