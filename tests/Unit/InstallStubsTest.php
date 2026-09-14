@@ -8,10 +8,21 @@ function makeStubInstallerFixture(): string
 {
     $root = sys_get_temp_dir().'/built-for-cloud-stubs-'.bin2hex(random_bytes(8));
 
-    mkdir($root.'/stubs', 0755, true);
+    mkdir($root.'/stubs/.claude/skills', 0755, true);
 
     foreach (['install-stubs.php', 'CLAUDE.md', 'workflow.md', 'README.md'] as $file) {
         copy(dirname(__DIR__, 2).'/stubs/'.$file, $root.'/stubs/'.$file);
+    }
+
+    foreach (glob(dirname(__DIR__, 2).'/stubs/.claude/skills/*', GLOB_ONLYDIR) ?: [] as $skill) {
+        $destination = $root.'/stubs/.claude/skills/'.basename($skill);
+        $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($skill, FilesystemIterator::SKIP_DOTS));
+
+        foreach ($items as $item) {
+            $target = $destination.'/'.substr($item->getPathname(), strlen($skill) + 1);
+            is_dir(dirname($target)) || mkdir(dirname($target), 0755, true);
+            copy($item->getPathname(), $target);
+        }
     }
 
     return $root;
@@ -47,7 +58,7 @@ function removeStubInstallerFixture(string $path): void
     rmdir($path);
 }
 
-test('it installs all Built for Cloud app documents and removes the stubs directory', function (): void {
+test('it installs all Built for Cloud app documents and skills and removes the stubs directory', function (): void {
     $root = makeStubInstallerFixture();
 
     try {
@@ -60,6 +71,10 @@ test('it installs all Built for Cloud app documents and removes the stubs direct
                 ->not->toBeFalse()
                 ->toContain('Built for Cloud')
                 ->toContain('{{FILL:');
+        }
+
+        foreach (['bfc-app-manifest', 'bfc-logo', 'bfc-readme'] as $skill) {
+            expect($root.'/.claude/skills/'.$skill.'/SKILL.md')->toBeFile();
         }
 
         expect($root.'/stubs')->not->toBeDirectory();
@@ -91,6 +106,25 @@ test('it preserves existing documents while installing eligible stubs', function
     }
 });
 
+test('it preserves existing skill files while installing the remaining tree', function (): void {
+    $root = makeStubInstallerFixture();
+    $existing = 'Existing manifest skill';
+
+    try {
+        mkdir($root.'/.claude/skills/bfc-app-manifest', 0755, true);
+        file_put_contents($root.'/.claude/skills/bfc-app-manifest/SKILL.md', $existing);
+
+        runStubInstaller($root);
+
+        expect(file_get_contents($root.'/.claude/skills/bfc-app-manifest/SKILL.md'))->toBe($existing)
+            ->and($root.'/.claude/skills/bfc-app-manifest/scripts/manifest.php')->toBeFile()
+            ->and($root.'/.claude/skills/bfc-logo/SKILL.md')->toBeFile()
+            ->and($root.'/stubs')->not->toBeDirectory();
+    } finally {
+        removeStubInstallerFixture($root);
+    }
+});
+
 test('the committed archive excludes only the kit README', function (): void {
     $archivePath = sys_get_temp_dir().'/built-for-cloud-archive-'.bin2hex(random_bytes(8)).'.tar';
 
@@ -103,7 +137,10 @@ test('the committed archive excludes only the kit README', function (): void {
         $archive = new PharData($archivePath);
 
         expect($archive->offsetExists('README.md'))->toBeFalse()
-            ->and($archive->offsetExists('stubs/README.md'))->toBeTrue();
+            ->and($archive->offsetExists('stubs/README.md'))->toBeTrue()
+            ->and($archive->offsetExists('stubs/.claude/skills/bfc-app-manifest/SKILL.md'))->toBeTrue()
+            ->and($archive->offsetExists('stubs/.claude/skills/bfc-logo/scripts/create-logo.php'))->toBeTrue()
+            ->and($archive->offsetExists('stubs/.claude/skills/bfc-readme/scripts/inspect.php'))->toBeTrue();
     } finally {
         unset($archive);
 
