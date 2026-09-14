@@ -76,7 +76,7 @@ function composerPackage(string $repository, string $sha, string $version, strin
         'type' => 'zip',
         'url' => 'file://'.$archive,
         'reference' => $sha,
-        'shasum' => hash_file('sha256', $archive),
+        'shasum' => sha1_file($archive),
     ];
 
     return $package;
