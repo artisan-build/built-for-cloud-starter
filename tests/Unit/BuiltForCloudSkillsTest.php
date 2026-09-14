@@ -90,6 +90,40 @@ test('manifest validator distinguishes invalid shape and misuse', function (): v
     }
 });
 
+test('manifest validator accepts only the wholly unconfigured default', function (): void {
+    $root = skillFixture();
+    $file = $root.'/config/built-for-cloud.php';
+    $manifest = array_fill_keys(['name', 'slug', 'description', 'icon', 'product_url'], null);
+    $ui = [
+        'landing_page' => false,
+        'member_management' => false,
+        'personal_credentials' => false,
+        'installation_credentials' => false,
+        'session_management' => false,
+        'managed_transitions' => false,
+        'credential_purposes' => [],
+    ];
+    file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'ui' => $ui], true).';');
+
+    try {
+        $unconfigured = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
+        $result = json_decode($unconfigured->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+
+        expect($unconfigured->getExitCode())->toBe(0)
+            ->and($result['ok'])->toBeTrue()
+            ->and($result['status'])->toBe('unconfigured');
+
+        $manifest['name'] = 'Partial App';
+        file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'ui' => $ui], true).';');
+        $partial = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
+
+        expect($partial->getExitCode())->toBe(1)
+            ->and(json_decode($partial->getOutput(), true, flags: JSON_THROW_ON_ERROR)['ok'])->toBeFalse();
+    } finally {
+        removeSkillFixture($root);
+    }
+});
+
 test('manifest writer is confined to the app root config target', function (): void {
     $root = skillFixture();
     $arbitrary = $root.'/arbitrary.php';

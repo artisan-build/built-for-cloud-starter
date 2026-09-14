@@ -107,25 +107,31 @@ if (! is_file($file)) {
 
 $config = require $file;
 $errors = [];
+$status = 'configured';
 if (! is_array($config) || array_keys($config) !== ['manifest', 'ui']) {
     $errors[] = 'top-level keys must be exactly manifest and ui';
 } else {
     if (! is_array($config['manifest']) || array_keys($config['manifest']) !== MANIFEST_KEYS) {
         $errors[] = 'manifest keys do not match the frozen shape';
     } else {
-        foreach (MANIFEST_KEYS as $key) {
-            if (! is_string($config['manifest'][$key]) || trim($config['manifest'][$key]) === '') {
-                $errors[] = "manifest.{$key} must be a non-empty string";
+        $unconfigured = array_filter($config['manifest'], fn (mixed $value): bool => $value !== null) === [];
+        $status = $unconfigured ? 'unconfigured' : 'configured';
+
+        if (! $unconfigured) {
+            foreach (MANIFEST_KEYS as $key) {
+                if (! is_string($config['manifest'][$key]) || trim($config['manifest'][$key]) === '') {
+                    $errors[] = "manifest.{$key} must be a non-empty string";
+                }
             }
-        }
-        if (is_string($config['manifest']['slug'] ?? null) && preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $config['manifest']['slug']) !== 1) {
-            $errors[] = 'manifest.slug has an invalid format';
-        }
-        if (! validProductUrl($config['manifest']['product_url'] ?? null)) {
-            $errors[] = 'manifest.product_url must be an absolute HTTPS URL on scalpels.app';
-        }
-        if (is_string($config['manifest']['icon'] ?? null) && (preg_match('#^/[A-Za-z0-9._/-]+\.svg$#', $config['manifest']['icon']) !== 1 || str_contains($config['manifest']['icon'], '\\') || array_intersect(explode('/', $config['manifest']['icon']), ['.', '..']) !== [])) {
-            $errors[] = 'manifest.icon must be a root-relative .svg path without traversal';
+            if (is_string($config['manifest']['slug'] ?? null) && preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $config['manifest']['slug']) !== 1) {
+                $errors[] = 'manifest.slug has an invalid format';
+            }
+            if (! validProductUrl($config['manifest']['product_url'] ?? null)) {
+                $errors[] = 'manifest.product_url must be an absolute HTTPS URL on scalpels.app';
+            }
+            if (is_string($config['manifest']['icon'] ?? null) && (preg_match('#^/[A-Za-z0-9._/-]+\.svg$#', $config['manifest']['icon']) !== 1 || str_contains($config['manifest']['icon'], '\\') || array_intersect(explode('/', $config['manifest']['icon']), ['.', '..']) !== [])) {
+                $errors[] = 'manifest.icon must be a root-relative .svg path without traversal';
+            }
         }
     }
     if (! is_array($config['ui']) || $config['ui'] !== UI_DEFAULTS) {
@@ -137,4 +143,4 @@ if ($errors !== []) {
     finish(['ok' => false, 'message' => implode('; ', $errors), 'errors' => $errors], $json, 1);
 }
 
-finish(['ok' => true, 'message' => "Manifest is valid: {$file}", 'file' => $file, 'manifest' => $config['manifest'], 'ui' => $config['ui']], $json, 0);
+finish(['ok' => true, 'status' => $status, 'message' => "Manifest is valid: {$file}", 'file' => $file, 'manifest' => $config['manifest'], 'ui' => $config['ui']], $json, 0);
