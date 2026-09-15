@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-// These app declarations are pending consumption by the package's P5-UI release.
 return [
     'manifest' => [
         'name' => null,
@@ -10,6 +9,13 @@ return [
         'description' => null,
         'icon' => null,
         'product_url' => null,
+    ],
+
+    'credentials' => [
+        'guard' => env('BUILT_FOR_CLOUD_CREDENTIAL_GUARD', 'bfc'),
+        'declaration' => null,
+        'session_guard' => null,
+        'app_purposes' => [],
     ],
 
     'ui' => [

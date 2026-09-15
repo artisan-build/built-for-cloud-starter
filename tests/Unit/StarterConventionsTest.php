@@ -17,7 +17,7 @@ test('dependency floors and the local assurance ladder remain intact', function 
     );
 
     expect($composer['require']['laravel/framework'])->toBe('^13.19')
-        ->and($composer['require']['artisan-build/built-for-cloud'])->toBe('^0.9')
+        ->and($composer['require']['artisan-build/built-for-cloud'])->toBe('^0.10')
         ->and($composer['scripts']['ready'])->toBe([
             '@ide-helper',
             '@rector',

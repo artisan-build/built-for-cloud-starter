@@ -4,23 +4,24 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d41bcd2f9084422cc8eaa56ee7737343",
+    "content-hash": "52c770f387a33fc8e895c57cf1a75698",
     "packages": [
         {
             "name": "artisan-build/built-for-cloud",
-            "version": "v0.9.2",
+            "version": "v0.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/artisan-build/built-for-cloud.git",
-                "reference": "309f136b40ccb44669c7f8cd6a6ba14bb4333f36"
+                "reference": "1422bf531e902e3d82609fbc1afa03f6552ace75"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/artisan-build/built-for-cloud/zipball/309f136b40ccb44669c7f8cd6a6ba14bb4333f36",
-                "reference": "309f136b40ccb44669c7f8cd6a6ba14bb4333f36",
+                "url": "https://api.github.com/repos/artisan-build/built-for-cloud/zipball/1422bf531e902e3d82609fbc1afa03f6552ace75",
+                "reference": "1422bf531e902e3d82609fbc1afa03f6552ace75",
                 "shasum": ""
             },
             "require": {
+                "composer/semver": "^3.4",
                 "illuminate/auth": "^13.24",
                 "illuminate/console": "^13.24",
                 "illuminate/contracts": "^13.24",
@@ -70,9 +71,9 @@
             ],
             "support": {
                 "issues": "https://github.com/artisan-build/built-for-cloud/issues",
-                "source": "https://github.com/artisan-build/built-for-cloud/tree/v0.9.2"
+                "source": "https://github.com/artisan-build/built-for-cloud/tree/v0.10.0"
             },
-            "time": "2026-09-14T06:50:22+00:00"
+            "time": "2026-09-15T05:30:02+00:00"
         },
         {
             "name": "aws/aws-crt-php",
@@ -352,6 +353,83 @@
                 }
             ],
             "time": "2024-02-09T16:56:22+00:00"
+        },
+        {
+            "name": "composer/semver",
+            "version": "3.4.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/composer/semver.git",
+                "reference": "198166618906cb2de69b95d7d47e5fa8aa1b2b95"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/composer/semver/zipball/198166618906cb2de69b95d7d47e5fa8aa1b2b95",
+                "reference": "198166618906cb2de69b95d7d47e5fa8aa1b2b95",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^5.3.2 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.11",
+                "symfony/phpunit-bridge": "^3 || ^7"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Composer\\Semver\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nils Adermann",
+                    "email": "naderman@naderman.de",
+                    "homepage": "http://www.naderman.de"
+                },
+                {
+                    "name": "Jordi Boggiano",
+                    "email": "j.boggiano@seld.be",
+                    "homepage": "http://seld.be"
+                },
+                {
+                    "name": "Rob Bast",
+                    "email": "rob.bast@gmail.com",
+                    "homepage": "http://robbast.nl"
+                }
+            ],
+            "description": "Semver library that offers utilities, version constraint parsing and validation.",
+            "keywords": [
+                "semantic",
+                "semver",
+                "validation",
+                "versioning"
+            ],
+            "support": {
+                "irc": "ircs://irc.libera.chat:6697/composer",
+                "issues": "https://github.com/composer/semver/issues",
+                "source": "https://github.com/composer/semver/tree/3.4.4"
+            },
+            "funding": [
+                {
+                    "url": "https://packagist.com",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/composer",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-08-20T19:15:30+00:00"
         },
         {
             "name": "defuse/php-encryption",

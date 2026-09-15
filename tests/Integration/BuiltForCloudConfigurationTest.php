@@ -6,7 +6,7 @@ use Composer\InstalledVersions;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 
-it('owns only the pending D-UI-3 configuration overlay', function (): void {
+it('owns only the D-UI-3 application configuration overlay', function (): void {
     /** @var array<string, mixed> $appConfig */
     $appConfig = require config_path('built-for-cloud.php');
 
@@ -17,6 +17,12 @@ it('owns only the pending D-UI-3 configuration overlay', function (): void {
             'description' => null,
             'icon' => null,
             'product_url' => null,
+        ],
+        'credentials' => [
+            'guard' => 'bfc',
+            'declaration' => null,
+            'session_guard' => null,
+            'app_purposes' => [],
         ],
         'ui' => [
             'landing_page' => false,
@@ -35,7 +41,7 @@ it('merges package defaults and auto-discovers the released provider', function 
     $constraint = data_get($composer, 'require.artisan-build/built-for-cloud');
     $version = InstalledVersions::getVersion('artisan-build/built-for-cloud');
 
-    expect($constraint)->toBe('^0.9')
+    expect($constraint)->toBe('^0.10')
         ->and($version)->toBeString();
     assert(is_string($constraint));
     assert(is_string($version));
@@ -59,8 +65,8 @@ it('merges package defaults and auto-discovers the released provider', function 
         ->and(config('auth.defaults.guard'))->toBe('web')
         ->and(config('auth.providers.users.model'))->toBe(User::class)
         ->and(app()->getLoadedProviders())->toHaveKey(BuiltForCloudServiceProvider::class, true)
-        ->and(version_compare($version, '0.9.0', '>='))->toBeTrue()
-        ->and(version_compare($version, '0.10.0', '<'))->toBeTrue();
+        ->and(version_compare($version, '0.10.0', '>='))->toBeTrue()
+        ->and(version_compare($version, '0.11.0', '<'))->toBeTrue();
 });
 
 it('runs fresh package-owned migrations on sqlite', function (): void {

@@ -10,6 +10,8 @@
 .env
 .env.backup
 .env.production
+/.env.bfc.lock
+/composer.json.bfc.lock
 .phpactor.json
 .phpstorm.meta.php
 .phpunit.result.cache

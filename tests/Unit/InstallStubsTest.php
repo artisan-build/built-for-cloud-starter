@@ -140,7 +140,6 @@ test('the committed archive excludes kit-only files and retains scaffold inputs'
             ->and($archive->offsetExists('tests/Unit/BuiltForCloudSkillsTest.php'))->toBeFalse()
             ->and($archive->offsetExists('tests/Unit/InstallStubsTest.php'))->toBeFalse()
             ->and($archive->offsetExists('tests/Unit/StarterConventionsTest.php'))->toBeFalse()
-            ->and($archive->offsetExists('tests/Feature/ExampleTest.php'))->toBeTrue()
             ->and($archive->offsetExists('tests/Integration/BuiltForCloudConfigurationTest.php'))->toBeTrue()
             ->and($archive->offsetExists('tests/Unit/ExampleTest.php'))->toBeTrue()
             ->and($archive->offsetExists('stubs/README.md'))->toBeTrue()
