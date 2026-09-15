@@ -6,6 +6,7 @@ declare(strict_types=1);
 use ArtisanBuild\BuiltForCloud\User;
 use Illuminate\Support\Sleep;
 use Symfony\Component\Process\Process;
+use Tests\Support\CandidatePackageVersion;
 use Tests\Support\ReferenceConsumerInventory;
 use Tests\Support\ReferenceConsumerInventoryControls;
 
@@ -357,17 +358,19 @@ try {
 
     $composerHome = $runRoot.'/composer-home';
     mkdir($composerHome, 0700);
+    $starterPackage = composerPackage($starterRepository, $options['starter-sha'], '1.0.0', $starterArchive);
+    $candidatePackageVersion = CandidatePackageVersion::fromStarterComposer($starterPackage);
     writeJson($composerHome.'/config.json', [
         'repositories' => [
             [
                 'type' => 'package',
                 'canonical' => true,
-                'package' => composerPackage($starterRepository, $options['starter-sha'], '1.0.0', $starterArchive),
+                'package' => $starterPackage,
             ],
             [
                 'type' => 'package',
                 'canonical' => true,
-                'package' => composerPackage($packageRepository, $options['package-sha'], '0.9.99', $packageArchive),
+                'package' => composerPackage($packageRepository, $options['package-sha'], $candidatePackageVersion, $packageArchive),
             ],
         ],
     ]);
