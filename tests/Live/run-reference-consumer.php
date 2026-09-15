@@ -7,6 +7,7 @@ use ArtisanBuild\BuiltForCloud\User;
 use Illuminate\Support\Sleep;
 use Symfony\Component\Process\Process;
 use Tests\Support\ReferenceConsumerInventory;
+use Tests\Support\ReferenceConsumerInventoryControls;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
@@ -277,20 +278,12 @@ PHP;
 /** @return array<string, string> */
 function runInventoryControls(): array
 {
-    $controls = [
-        'app_human_identity' => ['app/Models/User.php', '<?php class User implements \\Illuminate\\Contracts\\Auth\\Authenticatable {}'],
-        'auth_migrations' => ['database/migrations/2026_01_01_000000_create_users_table.php', '<?php return true;'],
-        'fortify' => ['app/Providers/FortifyServiceProvider.php', '<?php final class FortifyServiceProvider {}'],
-        'app_auth_surface' => ['app/Http/Controllers/Auth/LoginController.php', '<?php final class LoginController {}'],
-        'foreign_human_guards' => ['config/auth.php', "<?php return ['guards' => [], 'providers' => []];"],
-        'starter_root_collision' => ['routes/web.php', "<?php Route::get('/', fn () => 'collision');"],
-    ];
     $verdicts = [];
 
-    foreach ($controls as $family => [$path, $contents]) {
+    foreach (ReferenceConsumerInventoryControls::cases() as $name => $control) {
         $root = sys_get_temp_dir().'/bfc-live-inventory-'.bin2hex(random_bytes(6));
-        mkdir($root.'/config', 0700, true);
-        file_put_contents($root.'/config/auth.php', <<<'PHP'
+        mkdir($root, 0700);
+        $files = $control['files'] + ['config/auth.php' => <<<'PHP'
 <?php
 
 use ArtisanBuild\BuiltForCloud\User;
@@ -299,17 +292,22 @@ return [
     'guards' => ['web' => ['driver' => 'session', 'provider' => 'users']],
     'providers' => ['users' => ['driver' => 'eloquent', 'model' => User::class]],
 ];
-PHP);
-        if (! is_dir(dirname($root.'/'.$path))) {
-            mkdir(dirname($root.'/'.$path), 0700, true);
+PHP];
+        foreach ($files as $path => $contents) {
+            if (! is_dir(dirname($root.'/'.$path))) {
+                mkdir(dirname($root.'/'.$path), 0700, true);
+            }
+            file_put_contents($root.'/'.$path, $contents);
         }
-        file_put_contents($root.'/'.$path, $contents);
 
         try {
-            if (ReferenceConsumerInventory::inspect($root)[$family] === []) {
-                throw new RuntimeException("The {$family} inventory positive control did not turn red.");
+            $inventory = ReferenceConsumerInventory::inspect($root);
+            foreach ($control['families'] as $family) {
+                if ($inventory[$family] === []) {
+                    throw new RuntimeException("The {$name} inventory positive control did not turn {$family} red.");
+                }
             }
-            $verdicts[$family] = 'observed_red';
+            $verdicts[$name] = 'observed_red';
         } finally {
             removeTree($root);
         }

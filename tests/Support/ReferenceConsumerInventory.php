@@ -31,14 +31,13 @@ final class ReferenceConsumerInventory
             $lower = strtolower($normalized);
             $contents = str_ends_with($lower, '.php') ? (string) file_get_contents($path) : '';
 
-            if (str_starts_with($lower, 'app/') && str_ends_with($lower, '.php') && (
-                preg_match('/\b(class\s+User|implements\s+[^\{;]*Authenticatable|extends\s+[^\{;]*Authenticatable)\b/i', $contents) === 1
-                || $lower === 'app/models/user.php'
-            )) {
+            if (str_starts_with($lower, 'app/')
+                && str_ends_with($lower, '.php')
+                && self::declaresHumanIdentity($contents)) {
                 $found['app_human_identity'][] = $normalized;
             }
 
-            if (str_starts_with($lower, 'database/migrations/') && preg_match('/(create|alter|update).*(users?|auth|password|session)/', basename($lower)) === 1) {
+            if (self::isAuthMigration($lower, $contents)) {
                 $found['auth_migrations'][] = $normalized;
             }
 
@@ -48,16 +47,12 @@ final class ReferenceConsumerInventory
                 $found['fortify'][] = $normalized;
             }
 
-            if (str_starts_with($lower, 'app/http/controllers/auth/')
-                || (str_starts_with($lower, 'app/http/controllers/') && preg_match('/(login|register|password|reset)/', basename($lower)) === 1)
-                || str_starts_with($lower, 'resources/views/auth/')
-                || preg_match('#^resources/views/(login|register|forgot-password|reset-password)([./])#', $lower) === 1
-                || (str_starts_with($lower, 'routes/') && preg_match("#['\"]/(login|register|forgot-password|reset-password|password)#", $contents) === 1)) {
+            if (self::isAppAuthSurface($lower, $contents)) {
                 $found['app_auth_surface'][] = $normalized;
             }
 
             if ($lower === 'resources/views/welcome.blade.php'
-                || (str_starts_with($lower, 'routes/') && preg_match("#(?:get|view|match|any)\s*\(\s*['\"]/['\"]#i", $contents) === 1)) {
+                || (str_starts_with($lower, 'routes/') && preg_match("#Route::[a-z_][a-z0-9_]*\s*\(\s*['\"]/['\"]#i", $contents) === 1)) {
                 $found['starter_root_collision'][] = $normalized;
             }
         }
@@ -83,6 +78,89 @@ final class ReferenceConsumerInventory
         }
 
         return $found;
+    }
+
+    private static function declaresHumanIdentity(string $contents): bool
+    {
+        if (preg_match('/\bclass\s+User\b/i', $contents) === 1) {
+            return true;
+        }
+
+        $identityNames = ['Authenticatable'];
+        $identityTypes = implode('|', array_map(
+            static fn (string $type): string => preg_quote($type, '/'),
+            ['Illuminate\\Contracts\\Auth\\Authenticatable', 'Illuminate\\Foundation\\Auth\\User'],
+        ));
+        preg_match_all(
+            '/\buse\s+\\\\?(?:'.$identityTypes.')(?:\s+as\s+([a-z_][a-z0-9_]*))?\s*;/i',
+            $contents,
+            $imports,
+            PREG_SET_ORDER,
+        );
+
+        foreach ($imports as $import) {
+            if (($import[1] ?? '') !== '') {
+                $identityNames[] = $import[1];
+            } elseif (str_contains(strtolower($import[0]), 'foundation\\auth\\user')) {
+                $identityNames[] = 'User';
+            }
+        }
+
+        preg_match_all('/\bclass\s+[a-z_][a-z0-9_]*\s+([^\{;]*)\{/is', $contents, $declarations);
+        foreach ($declarations[1] ?? [] as $declaration) {
+            if (preg_match('/\b(?:extends|implements)\b/i', $declaration) !== 1) {
+                continue;
+            }
+
+            if (preg_match('/\\\\?(?:'.$identityTypes.')\b/i', $declaration) === 1) {
+                return true;
+            }
+
+            foreach (array_unique($identityNames) as $identityName) {
+                if (preg_match('/(?<![a-z0-9_\\\\])'.preg_quote($identityName, '/').'(?![a-z0-9_])/i', $declaration) === 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static function isAuthMigration(string $path, string $contents): bool
+    {
+        if (! str_starts_with($path, 'database/migrations/') || ! str_ends_with($path, '.php')) {
+            return false;
+        }
+
+        $name = pathinfo($path, PATHINFO_FILENAME);
+
+        return preg_match('/(?:^|_)(?:users?|auth(?:entication)?|passwords?|sessions?|passkeys?|webauthn|two_factor)(?:_|$)/', $name) === 1
+            || preg_match("#Schema::(?:create|table)\s*\(\s*['\"](?:users|password_reset_tokens|sessions|passkeys)['\"]#i", $contents) === 1;
+    }
+
+    private static function isAppAuthSurface(string $path, string $contents): bool
+    {
+        $authPath = '#(?:^|[/_.-])(?:auth(?:entication)?|login|logout|register|registration|password|reset|forgot|confirm|verify|verification|two[-_]?factor|passkeys?|webauthn|security)(?:[/_.-]|$)#';
+
+        if (str_starts_with($path, 'app/http/controllers/')) {
+            return preg_match($authPath, substr($path, strlen('app/http/controllers/'))) === 1;
+        }
+
+        if (str_starts_with($path, 'app/livewire/')) {
+            return preg_match($authPath, substr($path, strlen('app/livewire/'))) === 1
+                || preg_match('/\b(?:Auth|Password)::|\bauth\s*\(/', $contents) === 1;
+        }
+
+        if (str_starts_with($path, 'resources/views/')) {
+            return preg_match($authPath, substr($path, strlen('resources/views/'))) === 1;
+        }
+
+        if (! str_starts_with($path, 'routes/') || ! str_ends_with($path, '.php')) {
+            return false;
+        }
+
+        return preg_match($authPath, pathinfo($path, PATHINFO_FILENAME)) === 1
+            || preg_match("#Route::[a-z_][a-z0-9_]*\s*\(\s*['\"]/?(?:auth|login|logout|register|registration|forgot-password|reset-password|password|confirm-password|verify-email|email/verification)(?:[/.'\"]|$)#i", $contents) === 1;
     }
 
     /** @return array<string, string> */
