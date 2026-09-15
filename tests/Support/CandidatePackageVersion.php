@@ -9,7 +9,7 @@ use UnexpectedValueException;
 
 final class CandidatePackageVersion
 {
-    private const PACKAGE = 'artisan-build/built-for-cloud';
+    private const string PACKAGE = 'artisan-build/built-for-cloud';
 
     /** @param array<string, mixed> $composer */
     public static function fromStarterComposer(array $composer): string
