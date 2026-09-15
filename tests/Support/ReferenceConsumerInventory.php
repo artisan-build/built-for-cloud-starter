@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use ArtisanBuild\BuiltForCloud\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -89,7 +90,7 @@ final class ReferenceConsumerInventory
         $identityNames = ['Authenticatable'];
         $identityTypes = implode('|', array_map(
             static fn (string $type): string => preg_quote($type, '/'),
-            ['Illuminate\\Contracts\\Auth\\Authenticatable', 'Illuminate\\Foundation\\Auth\\User'],
+            [Authenticatable::class, \Illuminate\Foundation\Auth\User::class],
         ));
         preg_match_all(
             '/\buse\s+\\\\?(?:'.$identityTypes.')(?:\s+as\s+([a-z_][a-z0-9_]*))?\s*;/i',
