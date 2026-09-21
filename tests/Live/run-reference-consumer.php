@@ -433,6 +433,16 @@ try {
         'exit_code' => $generatedGate->getExitCode(),
     ];
     $cases['generated_app_gate'] = 'passed';
+    foreach (['.env.bfc.lock', 'composer.json.bfc.lock'] as $lockArtifact) {
+        $lockPath = $projectRoot.'/'.$lockArtifact;
+        if (! file_exists($lockPath) && ! is_link($lockPath)) {
+            continue;
+        }
+        if (is_link($lockPath) || ! is_file($lockPath) || filesize($lockPath) !== 0 || ! unlink($lockPath)) {
+            throw new RuntimeException("The generated app gate left an unexpected {$lockArtifact} artifact.");
+        }
+    }
+    $cases['generated_app_gate_lock_cleanup'] = 'passed';
 
     $spec = [
         'manifest' => [
