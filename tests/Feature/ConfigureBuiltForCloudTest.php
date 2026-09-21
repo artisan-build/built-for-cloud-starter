@@ -6,6 +6,7 @@ use ArtisanBuild\BuiltForCloud\Credential;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Process\Process;
 
 function starterConfigurationSpec(array $overrides = []): array
 {
@@ -166,6 +167,36 @@ it('writes the exact overlay and reruns without rewriting or reminting', functio
             ->not->toContain('shown once')
             ->and(filemtime($configurationPath))->toBe($mtime)
             ->and(Credential::query()->count())->toBe(1);
+    } finally {
+        file_put_contents($configurationPath, $original);
+        unlink($path);
+    }
+});
+
+it('writes a configuration that passes the manifest checker', function (): void {
+    $path = writeStarterConfigurationSpec(starterConfigurationSpec());
+    $configurationPath = config_path('built-for-cloud.php');
+    $original = (string) file_get_contents($configurationPath);
+
+    try {
+        expect(Artisan::call('bfc:starter:configure', ['--spec' => $path, '--no-interaction' => true]))
+            ->toBe(0, Artisan::output());
+
+        $check = new Process([
+            PHP_BINARY,
+            base_path('stubs/.claude/skills/bfc-app-manifest/scripts/manifest.php'),
+            '--check',
+            '--root='.base_path(),
+            '--json',
+        ]);
+        $check->run();
+        $result = json_decode($check->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+
+        expect($check->getExitCode())->toBe(0, $check->getErrorOutput())
+            ->and($result['ok'])->toBeTrue()
+            ->and($result['status'])->toBe('configured')
+            ->and($result['manifest'])->toBe(starterConfigurationSpec()['manifest'])
+            ->and($result['ui'])->toBe(starterConfigurationSpec()['ui']);
     } finally {
         file_put_contents($configurationPath, $original);
         unlink($path);
