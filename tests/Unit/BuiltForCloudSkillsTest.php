@@ -46,7 +46,7 @@ test('manifest writer emits and validates exactly the frozen overlay', function 
     try {
         $write = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [
             '--write', '--root='.$root, '--name=Fixture App', '--slug=fixture-app',
-            '--description=A useful fixture.', '--icon=/images/fixture.svg',
+            '--description=A useful fixture.', '--icon=https://assets.example.test/images/fixture.svg',
             '--product-url=https://scalpels.app/products/fixture?source=test', '--json',
         ]);
         $result = json_decode($write->getOutput(), true, flags: JSON_THROW_ON_ERROR);
@@ -74,6 +74,37 @@ test('manifest writer emits and validates exactly the frozen overlay', function 
                 'managed_transitions' => false,
                 'credential_purposes' => [],
             ]);
+    } finally {
+        removeSkillFixture($root);
+    }
+});
+
+test('manifest writer and checker reject root-relative icons', function (): void {
+    $root = skillFixture();
+    $file = $root.'/config/built-for-cloud.php';
+    $arguments = [
+        '--write', '--root='.$root, '--name=Fixture App', '--slug=fixture-app',
+        '--description=A useful fixture.', '--product-url=https://scalpels.app/products/fixture', '--json',
+    ];
+
+    try {
+        $write = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [...$arguments, '--icon=/images/fixture.svg']);
+        $writeResult = json_decode($write->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+
+        expect($write->getExitCode())->toBe(1)
+            ->and($writeResult['errors'])->toContain('icon must be an absolute HTTPS URL')
+            ->and($file)->not->toBeFile();
+
+        $absoluteIcon = 'https://assets.example.test/images/fixture.svg';
+        $validWrite = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [...$arguments, '--icon='.$absoluteIcon]);
+        expect($validWrite->getExitCode())->toBe(0);
+
+        file_put_contents($file, str_replace($absoluteIcon, '/images/fixture.svg', (string) file_get_contents($file)));
+        $check = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
+
+        expect($check->getExitCode())->toBe(1)
+            ->and(json_decode($check->getOutput(), true, flags: JSON_THROW_ON_ERROR)['errors'])
+            ->toContain('manifest.icon must be an absolute HTTPS URL');
     } finally {
         removeSkillFixture($root);
     }
@@ -113,41 +144,45 @@ test('manifest validator distinguishes invalid shape and misuse', function (): v
     }
 });
 
-test('manifest validator accepts only the wholly unconfigured default', function (): void {
+test('manifest validator accepts a configured product with enabled UI and credential purposes', function (): void {
     $root = skillFixture();
     $file = $root.'/config/built-for-cloud.php';
-    $manifest = array_fill_keys(['name', 'slug', 'description', 'icon', 'product_url'], null);
-    $ui = [
-        'landing_page' => false,
-        'member_management' => false,
-        'personal_credentials' => false,
-        'installation_credentials' => false,
-        'session_management' => false,
-        'managed_transitions' => false,
-        'credential_purposes' => [],
+    $manifest = [
+        'name' => 'Sink',
+        'slug' => 'sink',
+        'description' => 'Capture application events for later inspection.',
+        'icon' => 'https://scalpels.app/images/products/sink.svg',
+        'product_url' => 'https://scalpels.app/products/sink',
     ];
     $credentials = [
         'guard' => 'bfc',
         'declaration' => null,
         'session_guard' => null,
-        'app_purposes' => [],
+        'app_purposes' => [
+            'sink.ingest' => 'consumption',
+            'sink.mcp' => 'consumption',
+        ],
+    ];
+    $ui = [
+        'landing_page' => true,
+        'member_management' => true,
+        'personal_credentials' => false,
+        'installation_credentials' => true,
+        'session_management' => true,
+        'managed_transitions' => true,
+        'credential_purposes' => ['sink.ingest', 'sink.mcp'],
     ];
     file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'credentials' => $credentials, 'ui' => $ui], true).';');
 
     try {
-        $unconfigured = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
-        $result = json_decode($unconfigured->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+        $configured = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
+        $result = json_decode($configured->getOutput(), true, flags: JSON_THROW_ON_ERROR);
 
-        expect($unconfigured->getExitCode())->toBe(0)
+        expect($configured->getExitCode())->toBe(0)
             ->and($result['ok'])->toBeTrue()
-            ->and($result['status'])->toBe('unconfigured');
-
-        $manifest['name'] = 'Partial App';
-        file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'credentials' => $credentials, 'ui' => $ui], true).';');
-        $partial = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
-
-        expect($partial->getExitCode())->toBe(1)
-            ->and(json_decode($partial->getOutput(), true, flags: JSON_THROW_ON_ERROR)['ok'])->toBeFalse();
+            ->and($result['status'])->toBe('configured')
+            ->and($result['manifest'])->toBe($manifest)
+            ->and($result['ui'])->toBe($ui);
     } finally {
         removeSkillFixture($root);
     }
@@ -160,7 +195,7 @@ test('manifest writer is confined to the app root config target', function (): v
     try {
         $process = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), [
             '--write', '--file='.$arbitrary, '--name=Fixture App', '--slug=fixture-app',
-            '--description=A useful fixture.', '--icon=/images/fixture.svg',
+            '--description=A useful fixture.', '--icon=https://assets.example.test/images/fixture.svg',
             '--product-url=https://scalpels.app/products/fixture', '--json',
         ]);
 
@@ -176,7 +211,7 @@ test('manifest rejects non-canonical Scalpels product URLs', function (string $u
     $root = skillFixture();
     $arguments = [
         '--write', '--root='.$root, '--name=Fixture App', '--slug=fixture-app',
-        '--description=A useful fixture.', '--icon=/images/fixture.svg',
+        '--description=A useful fixture.', '--icon=https://assets.example.test/images/fixture.svg',
     ];
 
     try {
