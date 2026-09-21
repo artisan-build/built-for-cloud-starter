@@ -399,6 +399,51 @@ try {
     }
     $cases['candidate_resolution'] = 'passed';
 
+    $generatedConfig = require $projectRoot.'/config/built-for-cloud.php';
+    $generatedConfigKeys = is_array($generatedConfig) ? array_keys($generatedConfig) : [];
+    if ($generatedConfigKeys !== ['manifest', 'credentials', 'ui']) {
+        throw new RuntimeException('The generated app did not retain the expected Built for Cloud config shape.');
+    }
+    $manifestCheck = runCommand([
+        PHP_BINARY, '.claude/skills/bfc-app-manifest/scripts/manifest.php', '--check', '--json',
+    ], $projectRoot, $environment, 120);
+    $manifestCheckResult = json_decode($manifestCheck->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($manifestCheckResult)
+        || ($manifestCheckResult['ok'] ?? null) !== true
+        || ($manifestCheckResult['status'] ?? null) !== 'unconfigured') {
+        throw new RuntimeException('The generated app manifest helper did not pass standalone.');
+    }
+    $commands[] = [
+        'command' => 'php .claude/skills/bfc-app-manifest/scripts/manifest.php --check --json',
+        'exit_code' => $manifestCheck->getExitCode(),
+    ];
+    $cases['standalone_manifest_helper'] = 'passed';
+
+    $generatedGate = runCommand(['composer', 'ready'], $projectRoot, $environment, 600);
+    $generatedGateOutput = $generatedGate->getOutput().$generatedGate->getErrorOutput();
+    if (preg_match('/\{"tool":"pest","result":"passed","tests":\d+,"passed":\d+,"assertions":\d+,"duration_ms":\d+\}/', $generatedGateOutput, $generatedGateMatch) !== 1) {
+        throw new RuntimeException('The generated app gate did not report passing Pest counts.');
+    }
+    $generatedGatePest = json_decode($generatedGateMatch[0], true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($generatedGatePest)) {
+        throw new RuntimeException('The generated app gate Pest evidence was invalid.');
+    }
+    $commands[] = [
+        'command' => 'composer ready',
+        'exit_code' => $generatedGate->getExitCode(),
+    ];
+    $cases['generated_app_gate'] = 'passed';
+    foreach (['.env.bfc.lock', 'composer.json.bfc.lock'] as $lockArtifact) {
+        $lockPath = $projectRoot.'/'.$lockArtifact;
+        if (! file_exists($lockPath) && ! is_link($lockPath)) {
+            continue;
+        }
+        if (is_link($lockPath) || ! is_file($lockPath) || filesize($lockPath) !== 0 || ! unlink($lockPath)) {
+            throw new RuntimeException("The generated app gate left an unexpected {$lockArtifact} artifact.");
+        }
+    }
+    $cases['generated_app_gate_lock_cleanup'] = 'passed';
+
     $spec = [
         'manifest' => [
             'name' => 'Archive Proof Product',
@@ -867,6 +912,9 @@ writeJson($stampPath, [
     'starter_candidate' => ['sha' => $options['starter-sha'], 'archive_sha256' => $starterChecksum],
     'package_candidate' => ['sha' => $options['package-sha'], 'archive_sha256' => $packageChecksum],
     'input_shape' => array_keys($spec),
+    'generated_config_shape' => $generatedConfigKeys,
+    'standalone_manifest_helper' => $manifestCheckResult,
+    'generated_app_gate' => ['pest' => $generatedGatePest],
     'commands' => $commands,
     'versions' => $versions,
     'cases' => $cases,
