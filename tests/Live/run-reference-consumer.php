@@ -419,6 +419,21 @@ try {
     ];
     $cases['standalone_manifest_helper'] = 'passed';
 
+    $generatedGate = runCommand(['composer', 'ready'], $projectRoot, $environment, 600);
+    $generatedGateOutput = $generatedGate->getOutput().$generatedGate->getErrorOutput();
+    if (preg_match('/\{"tool":"pest","result":"passed","tests":\d+,"passed":\d+,"assertions":\d+,"duration_ms":\d+\}/', $generatedGateOutput, $generatedGateMatch) !== 1) {
+        throw new RuntimeException('The generated app gate did not report passing Pest counts.');
+    }
+    $generatedGatePest = json_decode($generatedGateMatch[0], true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($generatedGatePest)) {
+        throw new RuntimeException('The generated app gate Pest evidence was invalid.');
+    }
+    $commands[] = [
+        'command' => 'composer ready',
+        'exit_code' => $generatedGate->getExitCode(),
+    ];
+    $cases['generated_app_gate'] = 'passed';
+
     $spec = [
         'manifest' => [
             'name' => 'Archive Proof Product',
@@ -833,22 +848,6 @@ try {
     ];
     $cases['fleet_conformance_v1'] = 'passed';
     $subsequentOutput .= $conformance->getOutput().$conformance->getErrorOutput();
-
-    $generatedGate = runCommand(['composer', 'ready'], $projectRoot, $environment, 600);
-    $generatedGateOutput = $generatedGate->getOutput().$generatedGate->getErrorOutput();
-    if (preg_match('/\{"tool":"pest","result":"passed","tests":\d+,"passed":\d+,"assertions":\d+,"duration_ms":\d+\}/', $generatedGateOutput, $generatedGateMatch) !== 1) {
-        throw new RuntimeException('The generated app gate did not report passing Pest counts.');
-    }
-    $generatedGatePest = json_decode($generatedGateMatch[0], true, flags: JSON_THROW_ON_ERROR);
-    if (! is_array($generatedGatePest)) {
-        throw new RuntimeException('The generated app gate Pest evidence was invalid.');
-    }
-    $commands[] = [
-        'command' => 'composer ready',
-        'exit_code' => $generatedGate->getExitCode(),
-    ];
-    $cases['generated_app_gate'] = 'passed';
-    $subsequentOutput .= $generatedGateOutput;
 
     $versions = [
         'php' => PHP_VERSION,
