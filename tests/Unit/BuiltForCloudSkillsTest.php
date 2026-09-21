@@ -14,6 +14,7 @@ function skillFixture(): string
     $root = sys_get_temp_dir().'/built-for-cloud-skill-'.bin2hex(random_bytes(8));
     mkdir($root.'/config', 0755, true);
     mkdir($root.'/routes', 0755, true);
+    symlink(dirname(__DIR__, 2).'/vendor', $root.'/vendor');
 
     return $root;
 }
@@ -25,7 +26,7 @@ function removeSkillFixture(string $root): void
     }
     $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
     foreach ($items as $item) {
-        $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        $item->isDir() && ! $item->isLink() ? rmdir($item->getPathname()) : unlink($item->getPathname());
     }
     rmdir($root);
 }
@@ -56,8 +57,14 @@ test('manifest writer emits and validates exactly the frozen overlay', function 
             ->and($result['ok'])->toBeTrue()
             ->and($human->getExitCode())->toBe(0)
             ->and($human->getOutput())->toStartWith('OK: Manifest is valid:')
-            ->and(array_keys($config))->toBe(['manifest', 'ui'])
+            ->and(array_keys($config))->toBe(['manifest', 'credentials', 'ui'])
             ->and(array_keys($config['manifest']))->toBe(['name', 'slug', 'description', 'icon', 'product_url'])
+            ->and($config['credentials'])->toBe([
+                'guard' => 'bfc',
+                'declaration' => null,
+                'session_guard' => null,
+                'app_purposes' => [],
+            ])
             ->and($config['ui'])->toBe([
                 'landing_page' => false,
                 'member_management' => false,
@@ -70,6 +77,22 @@ test('manifest writer emits and validates exactly the frozen overlay', function 
     } finally {
         removeSkillFixture($root);
     }
+});
+
+test('manifest validator runs standalone against the scaffold config', function (): void {
+    $root = dirname(__DIR__, 2);
+    $process = new Process([
+        PHP_BINARY,
+        skillScript('bfc-app-manifest', 'manifest.php'),
+        '--check',
+        '--json',
+    ], $root);
+    $process->run();
+    $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and($result['ok'])->toBeTrue()
+        ->and($result['status'])->toBe('unconfigured');
 });
 
 test('manifest validator distinguishes invalid shape and misuse', function (): void {
@@ -103,7 +126,13 @@ test('manifest validator accepts only the wholly unconfigured default', function
         'managed_transitions' => false,
         'credential_purposes' => [],
     ];
-    file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'ui' => $ui], true).';');
+    $credentials = [
+        'guard' => 'bfc',
+        'declaration' => null,
+        'session_guard' => null,
+        'app_purposes' => [],
+    ];
+    file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'credentials' => $credentials, 'ui' => $ui], true).';');
 
     try {
         $unconfigured = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
@@ -114,7 +143,7 @@ test('manifest validator accepts only the wholly unconfigured default', function
             ->and($result['status'])->toBe('unconfigured');
 
         $manifest['name'] = 'Partial App';
-        file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'ui' => $ui], true).';');
+        file_put_contents($file, '<?php return '.var_export(['manifest' => $manifest, 'credentials' => $credentials, 'ui' => $ui], true).';');
         $partial = runSkill(skillScript('bfc-app-manifest', 'manifest.php'), ['--check', '--root='.$root, '--json']);
 
         expect($partial->getExitCode())->toBe(1)

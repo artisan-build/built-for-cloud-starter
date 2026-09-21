@@ -399,6 +399,26 @@ try {
     }
     $cases['candidate_resolution'] = 'passed';
 
+    $generatedConfig = require $projectRoot.'/config/built-for-cloud.php';
+    $generatedConfigKeys = is_array($generatedConfig) ? array_keys($generatedConfig) : [];
+    if ($generatedConfigKeys !== ['manifest', 'credentials', 'ui']) {
+        throw new RuntimeException('The generated app did not retain the expected Built for Cloud config shape.');
+    }
+    $manifestCheck = runCommand([
+        PHP_BINARY, '.claude/skills/bfc-app-manifest/scripts/manifest.php', '--check', '--json',
+    ], $projectRoot, $environment, 120);
+    $manifestCheckResult = json_decode($manifestCheck->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($manifestCheckResult)
+        || ($manifestCheckResult['ok'] ?? null) !== true
+        || ($manifestCheckResult['status'] ?? null) !== 'unconfigured') {
+        throw new RuntimeException('The generated app manifest helper did not pass standalone.');
+    }
+    $commands[] = [
+        'command' => 'php .claude/skills/bfc-app-manifest/scripts/manifest.php --check --json',
+        'exit_code' => $manifestCheck->getExitCode(),
+    ];
+    $cases['standalone_manifest_helper'] = 'passed';
+
     $spec = [
         'manifest' => [
             'name' => 'Archive Proof Product',
@@ -867,6 +887,8 @@ writeJson($stampPath, [
     'starter_candidate' => ['sha' => $options['starter-sha'], 'archive_sha256' => $starterChecksum],
     'package_candidate' => ['sha' => $options['package-sha'], 'archive_sha256' => $packageChecksum],
     'input_shape' => array_keys($spec),
+    'generated_config_shape' => $generatedConfigKeys,
+    'standalone_manifest_helper' => $manifestCheckResult,
     'commands' => $commands,
     'versions' => $versions,
     'cases' => $cases,

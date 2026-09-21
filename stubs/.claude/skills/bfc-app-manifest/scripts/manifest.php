@@ -94,7 +94,26 @@ if ($writing) {
         'icon' => $values['icon'],
         'product_url' => $values['product-url'],
     ];
-    $content = "<?php\n\ndeclare(strict_types=1);\n\nreturn ".var_export(['manifest' => $manifest, 'ui' => UI_DEFAULTS], true).";\n";
+    $manifestExport = var_export($manifest, true);
+    $uiExport = var_export(UI_DEFAULTS, true);
+    $content = <<<PHP
+        <?php
+
+        declare(strict_types=1);
+
+        return [
+            'manifest' => {$manifestExport},
+
+            'credentials' => [
+                'guard' => env('BUILT_FOR_CLOUD_CREDENTIAL_GUARD', 'bfc'),
+                'declaration' => null,
+                'session_guard' => null,
+                'app_purposes' => [],
+            ],
+
+            'ui' => {$uiExport},
+        ];
+        PHP;
     $directory = dirname($file);
     if ((! is_dir($directory) && ! mkdir($directory, 0755, true)) || file_put_contents($file, $content) === false) {
         finish(['ok' => false, 'message' => "Could not write {$file}."], $json, 1);
@@ -105,11 +124,16 @@ if (! is_file($file)) {
     finish(['ok' => false, 'message' => "Manifest not found: {$file}"], $json, 1);
 }
 
+$autoload = ($root === DIRECTORY_SEPARATOR ? '' : $root).DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+if (is_file($autoload)) {
+    require_once $autoload;
+}
+
 $config = require $file;
 $errors = [];
 $status = 'configured';
-if (! is_array($config) || array_keys($config) !== ['manifest', 'ui']) {
-    $errors[] = 'top-level keys must be exactly manifest and ui';
+if (! is_array($config) || array_keys($config) !== ['manifest', 'credentials', 'ui']) {
+    $errors[] = 'top-level keys must be exactly manifest, credentials, and ui';
 } else {
     if (! is_array($config['manifest']) || array_keys($config['manifest']) !== MANIFEST_KEYS) {
         $errors[] = 'manifest keys do not match the frozen shape';
