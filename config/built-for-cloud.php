@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 return [
     'manifest' => [
-        'name' => null,
-        'slug' => null,
-        'description' => null,
-        'icon' => null,
-        'product_url' => null,
+        'name' => 'App Name',
+        'slug' => 'app-name',
+        'description' => 'Replace with one sentence describing what this app does.',
+        'icon' => 'https://scalpels.app/img/products/transparent/app-name.png',
+        'product_url' => 'https://scalpels.app/products/app-name',
     ],
 
     'credentials' => [

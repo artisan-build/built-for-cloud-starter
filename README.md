@@ -63,6 +63,22 @@ composer ready
 `composer ready` regenerates IDE helpers, applies Rector and Pint, runs PHPStan and Pest, and audits
 Composer dependencies.
 
+## Setting the manifest
+
+Before the first deploy, replace every placeholder in the `manifest` block of
+`config/built-for-cloud.php`:
+
+| Field | Set it to |
+| --- | --- |
+| `name` | The product's display name as Scalpels lists it. |
+| `slug` | The product's lower-kebab-case Scalpels catalog slug. |
+| `description` | One sentence saying what the product does, as on its Scalpels product page. |
+| `icon` | `https://scalpels.app/img/products/transparent/{slug}.png` |
+| `product_url` | `https://scalpels.app/products/{slug}` |
+
+The `slug` must exactly match the product's Scalpels catalog slug; its artwork loads from
+`https://scalpels.app/img/products/transparent/{slug}.png`.
+
 ## Static Assets
 
 The application loads `public/build/assets/app.css` and `public/build/assets/fonts.css` directly.

@@ -12,11 +12,11 @@ it('owns only the D-UI-3 application configuration overlay', function (): void {
 
     expect($appConfig)->toBe([
         'manifest' => [
-            'name' => null,
-            'slug' => null,
-            'description' => null,
-            'icon' => null,
-            'product_url' => null,
+            'name' => 'App Name',
+            'slug' => 'app-name',
+            'description' => 'Replace with one sentence describing what this app does.',
+            'icon' => 'https://scalpels.app/img/products/transparent/app-name.png',
+            'product_url' => 'https://scalpels.app/products/app-name',
         ],
         'credentials' => [
             'guard' => 'bfc',
@@ -47,11 +47,11 @@ it('merges package defaults and auto-discovers the released provider', function 
     assert(is_string($version));
 
     expect(config('built-for-cloud.manifest'))->toBe([
-        'name' => null,
-        'slug' => null,
-        'description' => null,
-        'icon' => null,
-        'product_url' => null,
+        'name' => 'App Name',
+        'slug' => 'app-name',
+        'description' => 'Replace with one sentence describing what this app does.',
+        'icon' => 'https://scalpels.app/img/products/transparent/app-name.png',
+        'product_url' => 'https://scalpels.app/products/app-name',
     ])->and(config('built-for-cloud.ui'))->toBe([
         'landing_page' => false,
         'member_management' => false,
