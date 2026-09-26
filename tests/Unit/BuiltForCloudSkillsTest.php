@@ -110,7 +110,7 @@ test('manifest writer and checker reject root-relative icons', function (): void
     }
 });
 
-test('manifest validator runs standalone against the scaffold config', function (): void {
+test('manifest validator runs standalone against the configured scaffold manifest', function (): void {
     $root = dirname(__DIR__, 2);
     $process = new Process([
         PHP_BINARY,
@@ -123,7 +123,7 @@ test('manifest validator runs standalone against the scaffold config', function 
 
     expect($process->getExitCode())->toBe(0)
         ->and($result['ok'])->toBeTrue()
-        ->and($result['status'])->toBe('unconfigured');
+        ->and($result['status'])->toBe('configured');
 });
 
 test('manifest validator distinguishes invalid shape and misuse', function (): void {

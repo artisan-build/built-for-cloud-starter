@@ -410,7 +410,7 @@ try {
     $manifestCheckResult = json_decode($manifestCheck->getOutput(), true, flags: JSON_THROW_ON_ERROR);
     if (! is_array($manifestCheckResult)
         || ($manifestCheckResult['ok'] ?? null) !== true
-        || ($manifestCheckResult['status'] ?? null) !== 'unconfigured') {
+        || ($manifestCheckResult['status'] ?? null) !== 'configured') {
         throw new RuntimeException('The generated app manifest helper did not pass standalone.');
     }
     $commands[] = [
