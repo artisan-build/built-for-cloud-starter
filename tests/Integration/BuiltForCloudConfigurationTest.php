@@ -65,8 +65,8 @@ it('merges package defaults and auto-discovers the released provider', function 
         ->and(config('auth.defaults.guard'))->toBe('web')
         ->and(config('auth.providers.users.model'))->toBe(User::class)
         ->and(app()->getLoadedProviders())->toHaveKey(BuiltForCloudServiceProvider::class, true)
-        ->and(version_compare($version, '0.15.0', '>='))->toBeTrue()
-        ->and(version_compare($version, '0.16.0', '<'))->toBeTrue();
+        ->and(version_compare($version, '0.18.0', '>='))->toBeTrue()
+        ->and(version_compare($version, '0.19.0', '<'))->toBeTrue();
 });
 
 it('runs fresh package-owned migrations on sqlite', function (): void {
