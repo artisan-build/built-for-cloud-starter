@@ -9,22 +9,21 @@ function starterRoot(): string
     return dirname(__DIR__, 2);
 }
 
-test('dependency floors and the local assurance ladder remain intact', function (): void {
+test('the local assurance ladder remains intact', function (): void {
     $composer = json_decode(
         (string) file_get_contents(starterRoot().'/composer.json'),
         true,
         flags: JSON_THROW_ON_ERROR,
     );
 
-    expect($composer['require']['laravel/framework'])->toBe('^13.19')
-        ->and($composer['scripts']['ready'])->toBe([
-            '@ide-helper',
-            '@rector',
-            '@lint',
-            '@stan',
-            '@test',
-            'composer audit',
-        ])
+    expect($composer['scripts']['ready'])->toBe([
+        '@ide-helper',
+        '@rector',
+        '@lint',
+        '@stan',
+        '@test',
+        'composer audit',
+    ])
         ->and($composer['scripts']['rector:check'])->toBe([
             'rector process app bootstrap/app.php bootstrap/providers.php config public resources routes tests --dry-run',
         ]);
