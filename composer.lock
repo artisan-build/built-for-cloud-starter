@@ -8,25 +8,27 @@
     "packages": [
         {
             "name": "artisan-build/bfc-client",
-            "version": "v0.2.0",
+            "version": "v0.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/artisan-build/bfc-client.git",
-                "reference": "f5eb42296bbdad594d00bd4919fe8c11deac0c2e"
+                "reference": "72a52df5a716493de89ea431d46dbfd9fdf33ce8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/artisan-build/bfc-client/zipball/f5eb42296bbdad594d00bd4919fe8c11deac0c2e",
-                "reference": "f5eb42296bbdad594d00bd4919fe8c11deac0c2e",
+                "url": "https://api.github.com/repos/artisan-build/bfc-client/zipball/72a52df5a716493de89ea431d46dbfd9fdf33ce8",
+                "reference": "72a52df5a716493de89ea431d46dbfd9fdf33ce8",
                 "shasum": ""
             },
             "require": {
-                "illuminate/cache": "^13.0",
-                "illuminate/contracts": "^13.0",
-                "illuminate/filesystem": "^13.0",
-                "illuminate/http": "^13.0",
-                "illuminate/routing": "^13.0",
-                "illuminate/support": "^13.0",
+                "illuminate/cache": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/contracts": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/database": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/encryption": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/filesystem": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/http": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/routing": "^11.17 || ^12.0 || ^13.0",
+                "illuminate/support": "^11.17 || ^12.0 || ^13.0",
                 "php": "^8.3"
             },
             "require-dev": {
@@ -62,26 +64,27 @@
             ],
             "support": {
                 "issues": "https://github.com/artisan-build/bfc-client/issues",
-                "source": "https://github.com/artisan-build/bfc-client/tree/v0.2.0"
+                "source": "https://github.com/artisan-build/bfc-client/tree/v0.2.2"
             },
-            "time": "2026-09-15T14:43:18+00:00"
+            "time": "2026-10-13T13:23:58+00:00"
         },
         {
             "name": "artisan-build/built-for-cloud",
-            "version": "v0.19.8",
+            "version": "v0.19.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/artisan-build/built-for-cloud.git",
-                "reference": "91e0239d8ee2c3553f64497b853c16b5bdbc8583"
+                "reference": "86aae7b254f4ac99096f02f1dc793aaed1c194cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/artisan-build/built-for-cloud/zipball/91e0239d8ee2c3553f64497b853c16b5bdbc8583",
-                "reference": "91e0239d8ee2c3553f64497b853c16b5bdbc8583",
+                "url": "https://api.github.com/repos/artisan-build/built-for-cloud/zipball/86aae7b254f4ac99096f02f1dc793aaed1c194cf",
+                "reference": "86aae7b254f4ac99096f02f1dc793aaed1c194cf",
                 "shasum": ""
             },
             "require": {
-                "artisan-build/built-for-cloud-contracts": "^0.4",
+                "artisan-build/bfc-client": "^0.2.2",
+                "artisan-build/built-for-cloud-contracts": "^0.4.1",
                 "composer/semver": "^3.4",
                 "illuminate/auth": "^13.24",
                 "illuminate/console": "^13.24",
@@ -119,6 +122,9 @@
                 }
             },
             "autoload": {
+                "files": [
+                    "src/compatibility-aliases.php"
+                ],
                 "psr-4": {
                     "ArtisanBuild\\BuiltForCloud\\": "src/"
                 }
@@ -136,22 +142,22 @@
             ],
             "support": {
                 "issues": "https://github.com/artisan-build/built-for-cloud/issues",
-                "source": "https://github.com/artisan-build/built-for-cloud/tree/v0.19.8"
+                "source": "https://github.com/artisan-build/built-for-cloud/tree/v0.19.12"
             },
-            "time": "2026-10-01T11:52:18+00:00"
+            "time": "2026-10-17T21:47:58+00:00"
         },
         {
             "name": "artisan-build/built-for-cloud-contracts",
-            "version": "v0.4.0",
+            "version": "v0.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/artisan-build/built-for-cloud-contracts.git",
-                "reference": "2206024671444388a2db018bc392a33c14720b91"
+                "reference": "dd6cb48eb12f2752ee7856bd5913f62f24b7f80d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/artisan-build/built-for-cloud-contracts/zipball/2206024671444388a2db018bc392a33c14720b91",
-                "reference": "2206024671444388a2db018bc392a33c14720b91",
+                "url": "https://api.github.com/repos/artisan-build/built-for-cloud-contracts/zipball/dd6cb48eb12f2752ee7856bd5913f62f24b7f80d",
+                "reference": "dd6cb48eb12f2752ee7856bd5913f62f24b7f80d",
                 "shasum": ""
             },
             "require": {
@@ -181,9 +187,9 @@
             ],
             "support": {
                 "issues": "https://github.com/artisan-build/built-for-cloud-contracts/issues",
-                "source": "https://github.com/artisan-build/built-for-cloud-contracts/tree/v0.4.0"
+                "source": "https://github.com/artisan-build/built-for-cloud-contracts/tree/v0.4.1"
             },
-            "time": "2026-09-30T09:01:41+00:00"
+            "time": "2026-10-16T20:09:41+00:00"
         },
         {
             "name": "artisan-build/hone-client",
@@ -573,16 +579,16 @@
         },
         {
             "name": "composer/semver",
-            "version": "3.5.0",
+            "version": "3.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/semver.git",
-                "reference": "f7a296f4c4cf8cb8bb83e35d6951a406bb11afa5"
+                "reference": "528948210cc46f967a4b98e83b19e76f2b504993"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/semver/zipball/f7a296f4c4cf8cb8bb83e35d6951a406bb11afa5",
-                "reference": "f7a296f4c4cf8cb8bb83e35d6951a406bb11afa5",
+                "url": "https://api.github.com/repos/composer/semver/zipball/528948210cc46f967a4b98e83b19e76f2b504993",
+                "reference": "528948210cc46f967a4b98e83b19e76f2b504993",
                 "shasum": ""
             },
             "require": {
@@ -634,7 +640,7 @@
             "support": {
                 "irc": "ircs://irc.libera.chat:6697/composer",
                 "issues": "https://github.com/composer/semver/issues",
-                "source": "https://github.com/composer/semver/tree/3.5.0"
+                "source": "https://github.com/composer/semver/tree/3.5.1"
             },
             "funding": [
                 {
@@ -646,7 +652,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-24T14:38:51+00:00"
+            "time": "2026-10-05T13:12:12+00:00"
         },
         {
             "name": "defuse/php-encryption",
@@ -882,16 +888,16 @@
         },
         {
             "name": "doctrine/lexer",
-            "version": "3.0.2",
+            "version": "3.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/lexer.git",
-                "reference": "e96fe45e92a54233726014a7cc7340abf29bb14c"
+                "reference": "71d305eaa6480d3d3460c7d053d1da7749fa9cca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/lexer/zipball/e96fe45e92a54233726014a7cc7340abf29bb14c",
-                "reference": "e96fe45e92a54233726014a7cc7340abf29bb14c",
+                "url": "https://api.github.com/repos/doctrine/lexer/zipball/71d305eaa6480d3d3460c7d053d1da7749fa9cca",
+                "reference": "71d305eaa6480d3d3460c7d053d1da7749fa9cca",
                 "shasum": ""
             },
             "require": {
@@ -937,7 +943,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/lexer/issues",
-                "source": "https://github.com/doctrine/lexer/tree/3.0.2"
+                "source": "https://github.com/doctrine/lexer/tree/3.0.3"
             },
             "funding": [
                 {
@@ -953,7 +959,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-14T20:44:06+00:00"
+            "time": "2026-10-01T06:59:29+00:00"
         },
         {
             "name": "dragonmantank/cron-expression",
