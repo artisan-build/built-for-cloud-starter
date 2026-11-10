@@ -22,7 +22,7 @@ test('the local assurance ladder remains intact', function (): void {
         '@lint',
         '@stan',
         '@test',
-        'composer audit',
+        'composer audit --abandoned=report',
     ])
         ->and($composer['scripts']['rector:check'])->toBe([
             'rector process app bootstrap/app.php bootstrap/providers.php config public resources routes tests --dry-run',
@@ -37,7 +37,7 @@ test('CI enforces the package-installed assurance ladder', function (): void {
         ->toContain('run: composer rector:check')
         ->toContain('run: composer stan')
         ->toContain('run: ./vendor/bin/pest')
-        ->toContain('run: composer audit')
+        ->toContain('run: composer audit --locked --abandoned=report')
         ->and($lint)->toContain('run: composer lint');
 });
 
